@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WatchFace width="454" height="454" clipShape="CIRCLE">
+  <Scene>
+    <Group name="background">
+      <PartDraw width="454" height="454" x="0" y="0">
+        <Arc centerX="227" centerY="227" width="454" height="454"
+             startAngle="0" endAngle="360" direction="CLOCKWISE">
+          <Fill color="#1a1a2e"/>
+        </Arc>
+      </PartDraw>
+    </Group>
+    <!-- Hour markers -->
+    <Group name="markers">
+      <PartDraw x="222" y="20" width="10" height="30">
+        <RoundRectangle x="0" y="0" width="10" height="30" cornerRadiusX="2" cornerRadiusY="2">
+          <Fill color="#FFFFFF"/>
+        </RoundRectangle>
+      </PartDraw>
+      <PartDraw x="222" y="404" width="10" height="30">
+        <RoundRectangle x="0" y="0" width="10" height="30" cornerRadiusX="2" cornerRadiusY="2">
+          <Fill color="#FFFFFF"/>
+        </RoundRectangle>
+      </PartDraw>
+      <PartDraw x="404" y="222" width="30" height="10">
+        <RoundRectangle x="0" y="0" width="30" height="10" cornerRadiusX="2" cornerRadiusY="2">
+          <Fill color="#FFFFFF"/>
+        </RoundRectangle>
+      </PartDraw>
+      <PartDraw x="20" y="222" width="30" height="10">
+        <RoundRectangle x="0" y="0" width="30" height="10" cornerRadiusX="2" cornerRadiusY="2">
+          <Fill color="#FFFFFF"/>
+        </RoundRectangle>
+      </PartDraw>
+    </Group>
+    <AnalogClock centerX="227" centerY="227">
+      <HourHand>
+        <PartDraw width="12" height="120" pivotX="6" pivotY="100">
+          <RoundRectangle x="0" y="0" width="12" height="120" cornerRadiusX="4" cornerRadiusY="4">
+            <Fill color="#E0E0E0"/>
+          </RoundRectangle>
+        </PartDraw>
+      </HourHand>
+      <MinuteHand>
+        <PartDraw width="8" height="170" pivotX="4" pivotY="150">
+          <RoundRectangle x="0" y="0" width="8" height="170" cornerRadiusX="3" cornerRadiusY="3">
+            <Fill color="#FFFFFF"/>
+          </RoundRectangle>
+        </PartDraw>
+      </MinuteHand>
+      <SecondHand>
+        <PartDraw width="3" height="190" pivotX="1.5" pivotY="170">
+          <RoundRectangle x="0" y="0" width="3" height="190" cornerRadiusX="1" cornerRadiusY="1">
+            <Fill color="#FF4444"/>
+          </RoundRectangle>
+        </PartDraw>
+      </SecondHand>
+    </AnalogClock>
+    <!-- Center dot -->
+    <PartDraw x="220" y="220" width="14" height="14">
+      <Arc centerX="7" centerY="7" width="14" height="14"
+           startAngle="0" endAngle="360" direction="CLOCKWISE">
+        <Fill color="#FFFFFF"/>
+      </Arc>
+    </PartDraw>
+  </Scene>
+</WatchFace>

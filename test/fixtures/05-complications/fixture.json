@@ -1,0 +1,13 @@
+{
+  "name": "Complications",
+  "description": "ComplicationSlot elements for battery and date. Tests slot rendering with default providers.",
+  "scenarios": [
+    {
+      "name": "default-providers",
+      "time": "2024-01-15T10:10:00",
+      "ambient": false,
+      "threshold": 0.15,
+      "maxDiffPixelPercent": 10.0
+    }
+  ]
+}

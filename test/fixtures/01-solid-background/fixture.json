@@ -1,0 +1,13 @@
+{
+  "name": "Solid Background",
+  "description": "Simplest fixture: solid red circle fill. Validates the full pipeline with no dynamic content.",
+  "scenarios": [
+    {
+      "name": "static",
+      "time": "2024-01-15T10:10:00",
+      "ambient": false,
+      "threshold": 0.01,
+      "maxDiffPixelPercent": 0.5
+    }
+  ]
+}

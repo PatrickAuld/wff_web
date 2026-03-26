@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WatchFace width="454" height="454" clipShape="CIRCLE">
+  <Scene>
+    <Group name="background">
+      <PartDraw width="454" height="454" x="0" y="0">
+        <Arc centerX="227" centerY="227" width="454" height="454"
+             startAngle="0" endAngle="360" direction="CLOCKWISE">
+          <Fill color="#000000"/>
+        </Arc>
+      </PartDraw>
+    </Group>
+    <DigitalClock x="127" y="177" width="200" height="100">
+      <TimeText format="HH:mm" align="CENTER">
+        <Font family="SYNC_TO_DEVICE" size="64" color="#FFFFFF"/>
+      </TimeText>
+    </DigitalClock>
+  </Scene>
+</WatchFace>

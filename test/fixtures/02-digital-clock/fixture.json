@@ -1,0 +1,27 @@
+{
+  "name": "Digital Clock",
+  "description": "DigitalClock element with TimeText showing HH:mm. Tests text rendering and time binding.",
+  "scenarios": [
+    {
+      "name": "10-10",
+      "time": "2024-01-15T10:10:00",
+      "ambient": false,
+      "threshold": 0.1,
+      "maxDiffPixelPercent": 5.0
+    },
+    {
+      "name": "03-45",
+      "time": "2024-01-15T03:45:00",
+      "ambient": false,
+      "threshold": 0.1,
+      "maxDiffPixelPercent": 5.0
+    },
+    {
+      "name": "12-00",
+      "time": "2024-01-15T12:00:00",
+      "ambient": false,
+      "threshold": 0.1,
+      "maxDiffPixelPercent": 5.0
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WatchFace width="454" height="454" clipShape="CIRCLE">
+  <Scene>
+    <Group name="background">
+      <PartDraw width="454" height="454" x="0" y="0">
+        <Arc centerX="227" centerY="227" width="454" height="454"
+             startAngle="0" endAngle="360" direction="CLOCKWISE">
+          <Fill color="#1a1a1a"/>
+        </Arc>
+      </PartDraw>
+    </Group>
+    <DigitalClock x="127" y="147" width="200" height="80">
+      <TimeText format="HH:mm" align="CENTER">
+        <Font family="SYNC_TO_DEVICE" size="56" color="#FFFFFF"/>
+      </TimeText>
+    </DigitalClock>
+    <ComplicationSlot
+        slotId="1"
+        name="top"
+        x="177" y="60"
+        width="100" height="60"
+        supportedTypes="SHORT_TEXT LONG_TEXT">
+      <DefaultProviderPolicy
+          primaryProvider="com.google.android.wearable.app/com.google.android.clockwork.home.complications.BatteryProviderService"
+          defaultSystemProvider="PROVIDER_WATCH_BATTERY"/>
+    </ComplicationSlot>
+    <ComplicationSlot
+        slotId="2"
+        name="bottom"
+        x="177" y="320"
+        width="100" height="60"
+        supportedTypes="SHORT_TEXT">
+      <DefaultProviderPolicy
+          primaryProvider="com.google.android.wearable.app/com.google.android.clockwork.home.complications.DateProviderService"
+          defaultSystemProvider="PROVIDER_DATE"/>
+    </ComplicationSlot>
+  </Scene>
+</WatchFace>

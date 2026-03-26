@@ -1,0 +1,14 @@
+node_modules/
+dist/
+test/results/
+.apk-cache/
+*.tgz
+
+# Android build artifacts
+apk-template/.gradle/
+apk-template/build/
+apk-template/watchface/build/
+apk-template/local.properties
+
+# OS
+.DS_Store

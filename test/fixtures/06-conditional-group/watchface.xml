@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WatchFace width="454" height="454" clipShape="CIRCLE">
+  <Scene>
+    <Group name="background">
+      <PartDraw width="454" height="454" x="0" y="0">
+        <Arc centerX="227" centerY="227" width="454" height="454"
+             startAngle="0" endAngle="360" direction="CLOCKWISE">
+          <Fill color="#000000"/>
+        </Arc>
+      </PartDraw>
+    </Group>
+
+    <!-- AM indicator: visible when hour < 12 -->
+    <Condition>
+      <Expressions>
+        <Expression name="isAM">[HOUR_0_11] &lt; 12</Expression>
+      </Expressions>
+      <Compare expression="isAM">
+        <Group name="am-indicator">
+          <PartDraw x="197" y="280" width="60" height="30">
+            <RoundRectangle x="0" y="0" width="60" height="30" cornerRadiusX="8" cornerRadiusY="8">
+              <Fill color="#2196F3"/>
+            </RoundRectangle>
+          </PartDraw>
+          <DigitalClock x="197" y="280" width="60" height="30">
+            <TimeText format="a" align="CENTER">
+              <Font family="SYNC_TO_DEVICE" size="16" color="#FFFFFF"/>
+            </TimeText>
+          </DigitalClock>
+        </Group>
+      </Compare>
+    </Condition>
+
+    <!-- PM indicator: visible when hour >= 12 -->
+    <Condition>
+      <Expressions>
+        <Expression name="isPM">[HOUR_0_11] &gt;= 0</Expression>
+      </Expressions>
+      <Compare expression="isPM">
+        <Group name="pm-indicator">
+          <PartDraw x="197" y="280" width="60" height="30">
+            <RoundRectangle x="0" y="0" width="60" height="30" cornerRadiusX="8" cornerRadiusY="8">
+              <Fill color="#FF9800"/>
+            </RoundRectangle>
+          </PartDraw>
+          <DigitalClock x="197" y="280" width="60" height="30">
+            <TimeText format="a" align="CENTER">
+              <Font family="SYNC_TO_DEVICE" size="16" color="#FFFFFF"/>
+            </TimeText>
+          </DigitalClock>
+        </Group>
+      </Compare>
+    </Condition>
+
+    <DigitalClock x="127" y="180" width="200" height="80">
+      <TimeText format="hh:mm" align="CENTER">
+        <Font family="SYNC_TO_DEVICE" size="56" color="#FFFFFF"/>
+      </TimeText>
+    </DigitalClock>
+  </Scene>
+</WatchFace>

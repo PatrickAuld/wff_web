@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WatchFace width="454" height="454" clipShape="CIRCLE">
+  <Scene>
+    <Variant mode="AMBIENT" target="ambientGroup" value="TRUE"/>
+    <Variant mode="AMBIENT" target="interactiveGroup" value="FALSE"/>
+
+    <Group name="interactiveGroup">
+      <PartDraw width="454" height="454" x="0" y="0">
+        <Arc centerX="227" centerY="227" width="454" height="454"
+             startAngle="0" endAngle="360" direction="CLOCKWISE">
+          <Fill color="#0000FF"/>
+        </Arc>
+      </PartDraw>
+      <DigitalClock x="127" y="177" width="200" height="100">
+        <TimeText format="HH:mm:ss" align="CENTER">
+          <Font family="SYNC_TO_DEVICE" size="48" color="#FFFFFF"/>
+        </TimeText>
+      </DigitalClock>
+    </Group>
+
+    <Group name="ambientGroup">
+      <PartDraw width="454" height="454" x="0" y="0">
+        <Arc centerX="227" centerY="227" width="454" height="454"
+             startAngle="0" endAngle="360" direction="CLOCKWISE">
+          <Fill color="#000000"/>
+        </Arc>
+      </PartDraw>
+      <DigitalClock x="127" y="177" width="200" height="100">
+        <TimeText format="HH:mm" align="CENTER">
+          <Font family="SYNC_TO_DEVICE" size="48" color="#888888"/>
+        </TimeText>
+      </DigitalClock>
+    </Group>
+  </Scene>
+</WatchFace>
