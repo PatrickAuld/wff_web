@@ -10,5 +10,8 @@ apk-template/build/
 apk-template/watchface/build/
 apk-template/local.properties
 
+# Worktrees
+.worktrees/
+
 # OS
 .DS_Store
