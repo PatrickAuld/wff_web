@@ -1,23 +1,25 @@
-<?xml version="1.0" encoding="utf-8"?>
-<WatchFace width="454" height="454" clipShape="CIRCLE">
+<WatchFace width="450" height="450">
+  <Metadata key="CLOCK_TYPE" value="DIGITAL"/>
+  <Metadata key="PREVIEW_TIME" value="10:10:00"/>
   <Scene>
-    <Group name="background">
-      <PartDraw width="454" height="454" x="0" y="0">
-        <Arc centerX="227" centerY="227" width="454" height="454"
-             startAngle="0" endAngle="360" direction="CLOCKWISE">
-          <Fill color="#1a1a1a"/>
+    <Group name="background" x="0" y="0" width="450" height="450">
+      <PartDraw x="0" y="0" width="450" height="450">
+        <Arc centerX="225" centerY="225" width="450" height="450"
+             startAngle="0" endAngle="360">
+          <Stroke color="#1a1a1a" thickness="225"/>
         </Arc>
       </PartDraw>
     </Group>
-    <DigitalClock x="127" y="147" width="200" height="80">
-      <TimeText format="HH:mm" align="CENTER">
+    <DigitalClock x="100" y="150" width="250" height="80">
+      <TimeText format="HH:mm" align="CENTER"
+                minSize="48" maxSize="56" size="56">
         <Font family="SYNC_TO_DEVICE" size="56" color="#FFFFFF"/>
       </TimeText>
     </DigitalClock>
     <ComplicationSlot
         slotId="1"
         name="top"
-        x="177" y="60"
+        x="175" y="60"
         width="100" height="60"
         supportedTypes="SHORT_TEXT LONG_TEXT">
       <DefaultProviderPolicy
@@ -27,7 +29,7 @@
     <ComplicationSlot
         slotId="2"
         name="bottom"
-        x="177" y="320"
+        x="175" y="320"
         width="100" height="60"
         supportedTypes="SHORT_TEXT">
       <DefaultProviderPolicy

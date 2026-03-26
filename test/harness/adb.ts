@@ -49,14 +49,18 @@ export class AdbClient {
     const date = new Date(isoTime);
 
     // Disable auto time sync
-    await exec("adb", [
-      "shell",
-      "settings",
-      "put",
-      "global",
-      "auto_time",
-      "0",
-    ]);
+    try {
+      await exec("adb", [
+        "shell",
+        "settings",
+        "put",
+        "global",
+        "auto_time",
+        "0",
+      ]);
+    } catch {
+      // May not have permission on signed builds
+    }
 
     // Format for `date` command: MMDDhhmmYYYY.ss
     const mm = String(date.getMonth() + 1).padStart(2, "0");
@@ -67,16 +71,24 @@ export class AdbClient {
     const ss = String(date.getSeconds()).padStart(2, "0");
     const dateStr = `${mm}${dd}${hh}${min}${yyyy}.${ss}`;
 
-    await exec("adb", ["shell", "date", dateStr]);
+    try {
+      await exec("adb", ["shell", "date", dateStr]);
 
-    // Broadcast time change
-    await exec("adb", [
-      "shell",
-      "am",
-      "broadcast",
-      "-a",
-      "android.intent.action.TIME_SET",
-    ]);
+      // Broadcast time change
+      await exec("adb", [
+        "shell",
+        "am",
+        "broadcast",
+        "-a",
+        "android.intent.action.TIME_SET",
+      ]);
+    } catch {
+      // On signed/production WearOS images, setting time requires root.
+      // Fall through and use the current device time instead.
+      console.warn(
+        `  Warning: Cannot set time on this device (signed build). Using current time.`
+      );
+    }
 
     await this.settle();
   }

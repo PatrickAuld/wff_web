@@ -1,35 +1,48 @@
-<?xml version="1.0" encoding="utf-8"?>
-<WatchFace width="454" height="454" clipShape="CIRCLE">
+<WatchFace width="450" height="450">
+  <Metadata key="CLOCK_TYPE" value="DIGITAL"/>
+  <Metadata key="PREVIEW_TIME" value="10:10:00"/>
   <Scene>
-    <Variant mode="AMBIENT" target="ambientGroup" value="TRUE"/>
-    <Variant mode="AMBIENT" target="interactiveGroup" value="FALSE"/>
-
-    <Group name="interactiveGroup">
-      <PartDraw width="454" height="454" x="0" y="0">
-        <Arc centerX="227" centerY="227" width="454" height="454"
-             startAngle="0" endAngle="360" direction="CLOCKWISE">
-          <Fill color="#0000FF"/>
-        </Arc>
-      </PartDraw>
-      <DigitalClock x="127" y="177" width="200" height="100">
-        <TimeText format="HH:mm:ss" align="CENTER">
-          <Font family="SYNC_TO_DEVICE" size="48" color="#FFFFFF"/>
-        </TimeText>
-      </DigitalClock>
+    <Group name="interactive" x="0" y="0" width="450" height="450">
+      <Condition>
+        <Expressions>
+          <Expression name="isInteractive">![IS_AMBIENT]</Expression>
+        </Expressions>
+        <Compare expression="isInteractive">
+          <PartDraw x="0" y="0" width="450" height="450">
+            <Arc centerX="225" centerY="225" width="450" height="450"
+                 startAngle="0" endAngle="360">
+              <Stroke color="#0000FF" thickness="225"/>
+            </Arc>
+          </PartDraw>
+          <DigitalClock x="100" y="175" width="250" height="100">
+            <TimeText format="HH:mm:ss" align="CENTER"
+                      minSize="40" maxSize="48" size="48">
+              <Font family="SYNC_TO_DEVICE" size="48" color="#FFFFFF"/>
+            </TimeText>
+          </DigitalClock>
+        </Compare>
+      </Condition>
     </Group>
-
-    <Group name="ambientGroup">
-      <PartDraw width="454" height="454" x="0" y="0">
-        <Arc centerX="227" centerY="227" width="454" height="454"
-             startAngle="0" endAngle="360" direction="CLOCKWISE">
-          <Fill color="#000000"/>
-        </Arc>
-      </PartDraw>
-      <DigitalClock x="127" y="177" width="200" height="100">
-        <TimeText format="HH:mm" align="CENTER">
-          <Font family="SYNC_TO_DEVICE" size="48" color="#888888"/>
-        </TimeText>
-      </DigitalClock>
+    <Group name="ambient" x="0" y="0" width="450" height="450">
+      <Condition>
+        <Expressions>
+          <Expression name="isAmbient">[IS_AMBIENT]</Expression>
+        </Expressions>
+        <Compare expression="isAmbient">
+          <PartDraw x="0" y="0" width="450" height="450">
+            <Arc centerX="225" centerY="225" width="450" height="450"
+                 startAngle="0" endAngle="360">
+              <Stroke color="#000000" thickness="225"/>
+            </Arc>
+          </PartDraw>
+          <DigitalClock x="100" y="175" width="250" height="100">
+            <TimeText format="HH:mm" align="CENTER"
+                      minSize="40" maxSize="48" size="48">
+              <Font family="SYNC_TO_DEVICE" size="48" color="#888888"/>
+            </TimeText>
+          </DigitalClock>
+        </Compare>
+      </Condition>
     </Group>
   </Scene>
 </WatchFace>

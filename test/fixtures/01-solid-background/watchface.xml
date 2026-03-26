@@ -1,11 +1,12 @@
-<?xml version="1.0" encoding="utf-8"?>
-<WatchFace width="454" height="454" clipShape="CIRCLE">
+<WatchFace width="450" height="450">
+  <Metadata key="CLOCK_TYPE" value="DIGITAL"/>
+  <Metadata key="PREVIEW_TIME" value="10:10:00"/>
   <Scene>
-    <Group name="background">
-      <PartDraw width="454" height="454" x="0" y="0">
-        <Arc centerX="227" centerY="227" width="454" height="454"
-             startAngle="0" endAngle="360" direction="CLOCKWISE">
-          <Fill color="#FF0000"/>
+    <Group name="background" x="0" y="0" width="450" height="450">
+      <PartDraw x="0" y="0" width="450" height="450">
+        <Arc centerX="225" centerY="225" width="450" height="450"
+             startAngle="0" endAngle="360">
+          <Stroke color="#FF0000" thickness="225"/>
         </Arc>
       </PartDraw>
     </Group>

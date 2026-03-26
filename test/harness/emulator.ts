@@ -3,46 +3,46 @@ import { promisify } from "node:util";
 
 const exec = promisify(execFile);
 
-const AVD_NAME = "wff_test_avd";
-const SYSTEM_IMAGE = "system-images;android-34;android-wear;x86_64";
-const DEVICE_PROFILE = "wearos_large_round";
+const ANDROID_HOME = process.env.ANDROID_HOME ?? `${process.env.HOME}/Library/Android/sdk`;
+const EMULATOR_BIN = `${ANDROID_HOME}/emulator/emulator`;
+
+// AVD names to try, in preference order.
+// Uses existing "Wear_OS_Large_Round" if present, falls back to "wff_test_avd".
+const AVD_CANDIDATES = ["Wear_OS_Large_Round", "Wear_OS_Small_Round", "wff_test_avd"];
 const BOOT_TIMEOUT_MS = 180_000;
 const BOOT_POLL_INTERVAL_MS = 3_000;
 
 export class EmulatorManager {
   private process: ChildProcess | null = null;
+  private avdName: string | null = null;
 
-  /** Check if the AVD already exists */
-  async avdExists(): Promise<boolean> {
-    const { stdout } = await exec("avdmanager", ["list", "avd", "-c"]);
-    return stdout
-      .split("\n")
-      .map((l) => l.trim())
-      .includes(AVD_NAME);
+  /** Find a usable WearOS AVD from the candidates list */
+  async resolveAvd(): Promise<string> {
+    if (this.avdName) return this.avdName;
+
+    const avdDir = `${process.env.HOME}/.android/avd`;
+    for (const name of AVD_CANDIDATES) {
+      try {
+        const { readFileSync } = await import("node:fs");
+        const ini = readFileSync(`${avdDir}/${name}.ini`, "utf-8");
+        if (ini.includes("path=")) {
+          this.avdName = name;
+          console.log(`Using AVD: ${name}`);
+          return name;
+        }
+      } catch {
+        // AVD doesn't exist, try next
+      }
+    }
+    throw new Error(
+      `No WearOS AVD found. Looked for: ${AVD_CANDIDATES.join(", ")}.\n` +
+        "Create one in Android Studio or run: scripts/setup-emulator.sh"
+    );
   }
 
-  /** Create the AVD if it doesn't exist */
+  /** Ensure an AVD is available (resolves existing, does not create) */
   async ensureAvd(): Promise<void> {
-    if (await this.avdExists()) {
-      return;
-    }
-
-    console.log(`Creating AVD "${AVD_NAME}"...`);
-
-    // Ensure system image is installed
-    await exec("sdkmanager", [SYSTEM_IMAGE], { timeout: 300_000 });
-
-    await exec("avdmanager", [
-      "create",
-      "avd",
-      "-n",
-      AVD_NAME,
-      "-k",
-      SYSTEM_IMAGE,
-      "-d",
-      DEVICE_PROFILE,
-      "--force",
-    ]);
+    await this.resolveAvd();
   }
 
   /** Start the emulator headlessly */
@@ -53,18 +53,19 @@ export class EmulatorManager {
       return;
     }
 
-    console.log("Starting WearOS emulator...");
+    const avd = await this.resolveAvd();
+    console.log(`Starting WearOS emulator (${avd})...`);
 
     this.process = spawn(
-      "emulator",
+      EMULATOR_BIN,
       [
         "-avd",
-        AVD_NAME,
+        avd,
         "-no-window",
         "-no-audio",
         "-no-boot-anim",
         "-gpu",
-        "swiftshader_indirect",
+        "auto",
       ],
       {
         stdio: "ignore",

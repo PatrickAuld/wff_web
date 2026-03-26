@@ -16,6 +16,7 @@ const exec = promisify(execFile);
 
 const TEMPLATE_DIR = resolve(import.meta.dirname, "../../apk-template");
 const CACHE_DIR = resolve(import.meta.dirname, "../../.apk-cache");
+const ANDROID_HOME = process.env.ANDROID_HOME ?? `${process.env.HOME}/Library/Android/sdk`;
 
 export class ApkBuilder {
   /** Build an APK for a fixture, using cache when possible */
@@ -33,11 +34,8 @@ export class ApkBuilder {
 
     console.log(`Building APK for "${fixture.config.name}"...`);
 
-    // Inject watchface XML into template
-    const rawDir = join(
-      TEMPLATE_DIR,
-      "watchface/src/main/res/raw"
-    );
+    // Inject watchface XML into res/raw/ (WFF runtime reads from here)
+    const rawDir = join(TEMPLATE_DIR, "watchface/src/main/res/raw");
     await mkdir(rawDir, { recursive: true });
     await writeFile(join(rawDir, "watchface.xml"), fixture.xml);
 
@@ -71,7 +69,7 @@ export class ApkBuilder {
       await exec(gradlew, ["assembleDebug"], {
         cwd: TEMPLATE_DIR,
         timeout: 180_000,
-        env: { ...process.env, JAVA_HOME: process.env.JAVA_HOME },
+        env: { ...process.env, ANDROID_HOME, JAVA_HOME: process.env.JAVA_HOME },
       });
     } catch (err: any) {
       throw new Error(
