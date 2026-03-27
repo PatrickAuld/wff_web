@@ -1,3 +1,5 @@
+import { renderElement } from "./shapes.js";
+
 export interface RenderOptions {
   xml: string;
   assets?: Map<string, ArrayBuffer>;
@@ -60,6 +62,13 @@ export function renderWatchFace(
 
   ctx.fillStyle = backgroundColor;
   ctx.fillRect(0, 0, width, height);
+
+  // Walk Scene children and render shapes
+  if (scene) {
+    for (const child of scene.children) {
+      renderElement(ctx, child);
+    }
+  }
 
   return { metadata };
 }
