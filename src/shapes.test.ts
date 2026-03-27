@@ -320,4 +320,78 @@ describe("Phase 2 – Shapes & Styles", () => {
       await page.close();
     });
   });
+
+  describe("LinearGradient", () => {
+    it("fills a rectangle with a left-to-right gradient", async () => {
+      const page = await createPage();
+      const xml = `<WatchFace width="100" height="100">
+        <Scene backgroundColor="#000000">
+          <Rectangle x="0" y="0" width="100" height="100">
+            <Fill>
+              <LinearGradient startX="0" startY="0" endX="100" endY="0"
+                              colors="#FF0000 #0000FF" positions="0 1"/>
+            </Fill>
+          </Rectangle>
+        </Scene>
+      </WatchFace>`;
+      // Left side should be red-ish
+      const left = await renderAndSample(page, xml, 5, 50);
+      expect(left.r).toBeGreaterThan(200);
+      expect(left.b).toBeLessThan(50);
+      // Right side should be blue-ish
+      const right = await renderAndSample(page, xml, 95, 50);
+      expect(right.b).toBeGreaterThan(200);
+      expect(right.r).toBeLessThan(50);
+      await page.close();
+    });
+  });
+
+  describe("RadialGradient", () => {
+    it("fills a rectangle with a center-out gradient", async () => {
+      const page = await createPage();
+      const xml = `<WatchFace width="100" height="100">
+        <Scene backgroundColor="#000000">
+          <Rectangle x="0" y="0" width="100" height="100">
+            <Fill>
+              <RadialGradient centerX="50" centerY="50" radius="50"
+                              colors="#FFFFFF #000000" positions="0 1"/>
+            </Fill>
+          </Rectangle>
+        </Scene>
+      </WatchFace>`;
+      // Center should be white-ish
+      const center = await renderAndSample(page, xml, 50, 50);
+      expect(center.r).toBeGreaterThan(200);
+      expect(center.g).toBeGreaterThan(200);
+      // Near edge should be dark
+      const edge = await renderAndSample(page, xml, 95, 50);
+      expect(edge.r).toBeLessThan(50);
+      await page.close();
+    });
+  });
+
+  describe("SweepGradient", () => {
+    it("fills a rectangle with a conic/sweep gradient", async () => {
+      const page = await createPage();
+      const xml = `<WatchFace width="100" height="100">
+        <Scene backgroundColor="#000000">
+          <Rectangle x="0" y="0" width="100" height="100">
+            <Fill>
+              <SweepGradient centerX="50" centerY="50"
+                             startAngle="0" endAngle="360"
+                             colors="#FF0000 #00FF00 #0000FF #FF0000"
+                             positions="0 0.33 0.66 1"/>
+            </Fill>
+          </Rectangle>
+        </Scene>
+      </WatchFace>`;
+      // Sample at top-center (12 o'clock = 0 degrees in WFF) — should be red-ish
+      const top = await renderAndSample(page, xml, 50, 5);
+      expect(top.r).toBeGreaterThan(150);
+      // Sample at right (3 o'clock = 90 degrees) — should be green-ish
+      const rightSide = await renderAndSample(page, xml, 95, 50);
+      expect(rightSide.g).toBeGreaterThan(100);
+      await page.close();
+    });
+  });
 });
