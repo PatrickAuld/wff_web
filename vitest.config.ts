@@ -9,6 +9,6 @@ export default defineConfig({
     // Exclude visual tests from the default `pnpm test` run
     // since they require a WearOS emulator.
     // Run visual tests explicitly with `pnpm test:visual`
-    exclude: ["test/visual/**", "node_modules/**"],
+    exclude: ["test/visual/**", "node_modules/**", ".worktrees/**"],
   },
 });
