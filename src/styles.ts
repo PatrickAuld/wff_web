@@ -64,18 +64,27 @@ export function createGradient(
 
 function addColorStops(
   gradient: CanvasGradient,
-  el: Element
+  el: Element,
+  positionScale = 1
 ): CanvasGradient {
   const colorsAttr = el.getAttribute("colors") ?? "";
   const positionsAttr = el.getAttribute("positions") ?? "";
   const colors = colorsAttr.split(/\s+/).filter(Boolean);
   const positions = positionsAttr.split(/\s+/).filter(Boolean).map(Number);
+  const clampedScale = clampStop(positionScale);
+  let lastStop = 0;
 
   for (let i = 0; i < colors.length; i++) {
-    const pos = i < positions.length
+    const basePos = i < positions.length
       ? positions[i]
       : colors.length <= 1 ? 0 : i / (colors.length - 1);
+    const pos = clampStop(basePos * clampedScale);
+    lastStop = pos;
     gradient.addColorStop(pos, parseColor(colors[i]));
+  }
+
+  if (colors.length > 0 && clampedScale < 1 && lastStop < 1) {
+    gradient.addColorStop(1, parseColor(colors.at(-1)));
   }
   return gradient;
 }
@@ -108,7 +117,31 @@ function createSweepGradient(
   const cx = parseFloat(el.getAttribute("centerX") ?? "0");
   const cy = parseFloat(el.getAttribute("centerY") ?? "0");
   const startAngle = parseFloat(el.getAttribute("startAngle") ?? "0");
+  const endAngle = parseFloat(el.getAttribute("endAngle") ?? "360");
   // WFF: 0 = 12 o'clock. Conic gradient: 0 = 3 o'clock. Offset by -90 degrees.
   const startRad = ((startAngle - 90) * Math.PI) / 180;
-  return addColorStops(ctx.createConicGradient(startRad, cx, cy), el);
+  const sweepFraction = getSweepFraction(startAngle, endAngle);
+  return addColorStops(
+    ctx.createConicGradient(startRad, cx, cy),
+    el,
+    sweepFraction
+  );
+}
+
+function getSweepFraction(startAngle: number, endAngle: number): number {
+  const rawSweep = endAngle - startAngle;
+  if (!Number.isFinite(rawSweep) || Math.abs(rawSweep) >= 360) {
+    return 1;
+  }
+
+  const normalizedSweep = ((rawSweep % 360) + 360) % 360;
+  return normalizedSweep === 0 ? 1 : normalizedSweep / 360;
+}
+
+function clampStop(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  return Math.min(1, Math.max(0, value));
 }

@@ -33,7 +33,7 @@ describe("canvas renderer", () => {
     expect(parsed.height).toBe(450);
   });
 
-  it("renders stub magenta fill when library not loaded", async () => {
+  it("renders the library output in the harness page", async () => {
     const png = await renderer.render({
       watchfaceXml: "<WatchFace/>",
       assets: new Map(),
@@ -44,13 +44,13 @@ describe("canvas renderer", () => {
     });
 
     const parsed = PNG.sync.read(png);
-    // Check center pixel is magenta (255, 0, 255)
+    // Minimal XML defaults to a 450x450 black Scene background.
     const cx = 225;
     const cy = 225;
     const idx = (cy * 450 + cx) * 4;
-    expect(parsed.data[idx]).toBe(255); // R
+    expect(parsed.data[idx]).toBe(0); // R
     expect(parsed.data[idx + 1]).toBe(0); // G
-    expect(parsed.data[idx + 2]).toBe(255); // B
+    expect(parsed.data[idx + 2]).toBe(0); // B
     expect(parsed.data[idx + 3]).toBe(255); // A
   });
 });
