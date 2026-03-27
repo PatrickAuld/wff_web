@@ -200,4 +200,124 @@ describe("Phase 2 – Shapes & Styles", () => {
       await page.close();
     });
   });
+
+  describe("RoundRectangle", () => {
+    it("renders a filled round rectangle", async () => {
+      const page = await createPage();
+      const xml = `<WatchFace width="100" height="100">
+        <Scene backgroundColor="#000000">
+          <RoundRectangle x="10" y="10" width="80" height="80"
+                          cornerRadiusX="15" cornerRadiusY="15">
+            <Fill color="#FF00FF"/>
+          </RoundRectangle>
+        </Scene>
+      </WatchFace>`;
+      const center = await renderAndSample(page, xml, 50, 50);
+      expect(center.r).toBe(255);
+      expect(center.b).toBe(255);
+      expect(center.g).toBe(0);
+      await page.close();
+    });
+
+    it("renders a stroked round rectangle", async () => {
+      const page = await createPage();
+      const xml = `<WatchFace width="100" height="100">
+        <Scene backgroundColor="#000000">
+          <RoundRectangle x="10" y="10" width="80" height="80"
+                          cornerRadiusX="10" cornerRadiusY="10">
+            <Stroke color="#FFFFFF" thickness="4"/>
+          </RoundRectangle>
+        </Scene>
+      </WatchFace>`;
+      const pixel = await renderAndSample(page, xml, 50, 10);
+      expect(pixel.r).toBe(255);
+      expect(pixel.g).toBe(255);
+      expect(pixel.b).toBe(255);
+      await page.close();
+    });
+  });
+
+  describe("Ellipse", () => {
+    it("renders a filled ellipse", async () => {
+      const page = await createPage();
+      const xml = `<WatchFace width="100" height="100">
+        <Scene backgroundColor="#000000">
+          <Ellipse x="10" y="25" width="80" height="50">
+            <Fill color="#00FFFF"/>
+          </Ellipse>
+        </Scene>
+      </WatchFace>`;
+      const center = await renderAndSample(page, xml, 50, 50);
+      expect(center.r).toBe(0);
+      expect(center.g).toBe(255);
+      expect(center.b).toBe(255);
+      await page.close();
+    });
+
+    it("does not fill outside the ellipse boundary", async () => {
+      const page = await createPage();
+      const xml = `<WatchFace width="100" height="100">
+        <Scene backgroundColor="#000000">
+          <Ellipse x="25" y="10" width="50" height="80">
+            <Fill color="#FFFFFF"/>
+          </Ellipse>
+        </Scene>
+      </WatchFace>`;
+      const corner = await renderAndSample(page, xml, 5, 5);
+      expect(corner.r).toBe(0);
+      expect(corner.g).toBe(0);
+      expect(corner.b).toBe(0);
+      await page.close();
+    });
+  });
+
+  describe("Line", () => {
+    it("renders a stroked line", async () => {
+      const page = await createPage();
+      const xml = `<WatchFace width="100" height="100">
+        <Scene backgroundColor="#000000">
+          <Line startX="0" startY="50" endX="100" endY="50">
+            <Stroke color="#FFFF00" thickness="10"/>
+          </Line>
+        </Scene>
+      </WatchFace>`;
+      const pixel = await renderAndSample(page, xml, 50, 50);
+      expect(pixel.r).toBe(255);
+      expect(pixel.g).toBe(255);
+      expect(pixel.b).toBe(0);
+      await page.close();
+    });
+
+    it("renders a line with round cap", async () => {
+      const page = await createPage();
+      const xml = `<WatchFace width="100" height="100">
+        <Scene backgroundColor="#000000">
+          <Line startX="20" startY="50" endX="80" endY="50">
+            <Stroke color="#FF0000" thickness="20" cap="ROUND"/>
+          </Line>
+        </Scene>
+      </WatchFace>`;
+      const pixel = await renderAndSample(page, xml, 50, 50);
+      expect(pixel.r).toBe(255);
+      await page.close();
+    });
+
+    it("renders a dashed line", async () => {
+      const page = await createPage();
+      const xml = `<WatchFace width="100" height="100">
+        <Scene backgroundColor="#000000">
+          <Line startX="0" startY="50" endX="100" endY="50">
+            <Stroke color="#FFFFFF" thickness="6" dashIntervals="10 10"/>
+          </Line>
+        </Scene>
+      </WatchFace>`;
+      const onDash = await renderAndSample(page, xml, 5, 50);
+      expect(onDash.r).toBe(255);
+      expect(onDash.g).toBe(255);
+      const offDash = await renderAndSample(page, xml, 15, 50);
+      expect(offDash.r).toBe(0);
+      expect(offDash.g).toBe(0);
+      await page.close();
+    });
+  });
 });
