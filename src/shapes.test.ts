@@ -105,4 +105,99 @@ describe("Phase 2 – Shapes & Styles", () => {
       await page.close();
     });
   });
+
+  describe("Arc", () => {
+    it("renders a full circle arc with stroke", async () => {
+      const page = await createPage();
+      const xml = `<WatchFace width="100" height="100">
+        <Scene backgroundColor="#000000">
+          <Arc centerX="50" centerY="50" width="80" height="80"
+               startAngle="0" endAngle="360">
+            <Stroke color="#FF0000" thickness="10"/>
+          </Arc>
+        </Scene>
+      </WatchFace>`;
+      // Sample on the arc path (at top: 50, 14)
+      const pixel = await renderAndSample(page, xml, 50, 14);
+      expect(pixel.r).toBe(255);
+      expect(pixel.g).toBe(0);
+      await page.close();
+    });
+
+    it("renders a filled arc", async () => {
+      const page = await createPage();
+      const xml = `<WatchFace width="100" height="100">
+        <Scene backgroundColor="#000000">
+          <Arc centerX="50" centerY="50" width="100" height="100"
+               startAngle="0" endAngle="360">
+            <Fill color="#0000FF"/>
+          </Arc>
+        </Scene>
+      </WatchFace>`;
+      const pixel = await renderAndSample(page, xml, 50, 50);
+      expect(pixel.b).toBe(255);
+      expect(pixel.r).toBe(0);
+      await page.close();
+    });
+
+    it("renders an arc inside Group > PartDraw (fixture 01 pattern)", async () => {
+      const page = await createPage();
+      const xml = `<WatchFace width="100" height="100">
+        <Scene>
+          <Group name="bg" x="0" y="0" width="100" height="100">
+            <PartDraw x="0" y="0" width="100" height="100">
+              <Arc centerX="50" centerY="50" width="100" height="100"
+                   startAngle="0" endAngle="360">
+                <Stroke color="#FF0000" thickness="50"/>
+              </Arc>
+            </PartDraw>
+          </Group>
+        </Scene>
+      </WatchFace>`;
+      // Arc radius=50, stroke thickness=50: stroke is centered at y=0 (top),
+      // extending from y=-25 (clipped) to y=25. Sample at (50, 10).
+      const pixel = await renderAndSample(page, xml, 50, 10);
+      expect(pixel.r).toBe(255);
+      expect(pixel.g).toBe(0);
+      expect(pixel.b).toBe(0);
+      await page.close();
+    });
+
+    it("renders a counter-clockwise arc", async () => {
+      const page = await createPage();
+      const xml = `<WatchFace width="100" height="100">
+        <Scene backgroundColor="#000000">
+          <Arc centerX="50" centerY="50" width="80" height="80"
+               startAngle="0" endAngle="90" direction="COUNTER_CLOCKWISE">
+            <Stroke color="#00FF00" thickness="6"/>
+          </Arc>
+        </Scene>
+      </WatchFace>`;
+      // Left side (9 o'clock = 270 degrees) should have the stroke
+      const pixel = await renderAndSample(page, xml, 10, 50);
+      expect(pixel.g).toBe(255);
+      await page.close();
+    });
+
+    it("renders an elliptical arc when width != height", async () => {
+      const page = await createPage();
+      const xml = `<WatchFace width="100" height="100">
+        <Scene backgroundColor="#000000">
+          <Arc centerX="50" centerY="50" width="90" height="40"
+               startAngle="0" endAngle="360">
+            <Fill color="#FFFF00"/>
+          </Arc>
+        </Scene>
+      </WatchFace>`;
+      // Center should be yellow
+      const center = await renderAndSample(page, xml, 50, 50);
+      expect(center.r).toBe(255);
+      expect(center.g).toBe(255);
+      // Top/bottom edge at (50, 20) should be outside the short axis — still black
+      const outside = await renderAndSample(page, xml, 50, 20);
+      expect(outside.r).toBe(0);
+      expect(outside.g).toBe(0);
+      await page.close();
+    });
+  });
 });
