@@ -59,7 +59,9 @@ function renderRoundRectangle(
   const ry = parseFloat(el.getAttribute("cornerRadiusY") ?? rx.toString());
 
   ctx.beginPath();
-  ctx.roundRect(x, y, w, h, [rx, ry]);
+  // DOMPointInit gives per-axis elliptical radii for each corner
+  const radius = { x: rx, y: ry };
+  ctx.roundRect(x, y, w, h, [radius, radius, radius, radius]);
   applyFill(ctx, el);
   applyStroke(ctx, el);
 }

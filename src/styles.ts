@@ -72,7 +72,9 @@ function addColorStops(
   const positions = positionsAttr.split(/\s+/).filter(Boolean).map(Number);
 
   for (let i = 0; i < colors.length; i++) {
-    const pos = i < positions.length ? positions[i] : i / (colors.length - 1);
+    const pos = i < positions.length
+      ? positions[i]
+      : colors.length <= 1 ? 0 : i / (colors.length - 1);
     gradient.addColorStop(pos, parseColor(colors[i]));
   }
   return gradient;
