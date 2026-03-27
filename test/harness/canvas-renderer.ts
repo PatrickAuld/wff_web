@@ -23,9 +23,6 @@ export class CanvasRenderer {
       throw new Error("CanvasRenderer not initialized. Call init() first.");
     }
 
-    const width = config.width ?? DEFAULTS.watchWidth;
-    const height = config.height ?? DEFAULTS.watchHeight;
-
     // Create a fresh page for each render to avoid stale state
     const page = await this.browser.newPage();
     await page.setContent(this.htmlContent, {
@@ -37,18 +34,12 @@ export class CanvasRenderer {
       async ({
         xml,
         assetsEntries,
-        width,
-        height,
         timeIso,
         ambient,
       }) => {
         const canvas = document.getElementById(
           "watchface"
         ) as HTMLCanvasElement;
-        canvas.width = width;
-        canvas.height = height;
-
-        const ctx = canvas.getContext("2d")!;
 
         // Convert asset entries back to a Map of ArrayBuffers
         const assets = new Map<string, ArrayBuffer>();
@@ -61,21 +52,21 @@ export class CanvasRenderer {
           assets.set(name, bytes.buffer);
         }
 
-        // Try to use the wff-web library if loaded, otherwise render a stub
+        // Use the wff-web library — pass canvas + options, library handles sizing
         if (typeof (window as any).renderWatchFace === "function") {
-          (window as any).renderWatchFace({
-            ctx,
+          (window as any).renderWatchFace(canvas, {
             xml,
             assets,
-            width,
-            height,
             time: new Date(timeIso),
             ambient,
           });
         } else {
           // Stub: fill with magenta to clearly show "not implemented"
+          canvas.width = 450;
+          canvas.height = 450;
+          const ctx = canvas.getContext("2d")!;
           ctx.fillStyle = "#FF00FF";
-          ctx.fillRect(0, 0, width, height);
+          ctx.fillRect(0, 0, 450, 450);
         }
 
         return canvas.toDataURL("image/png");
@@ -85,8 +76,6 @@ export class CanvasRenderer {
         assetsEntries: Array.from(config.assets.entries()).map(
           ([name, buf]) => [name, buf.toString("base64")]
         ),
-        width,
-        height,
         timeIso: config.time.toISOString(),
         ambient: config.ambient,
       }

@@ -27,26 +27,27 @@ describe("canvas renderer", () => {
     expect(png).toBeInstanceOf(Buffer);
     expect(png.length).toBeGreaterThan(100);
 
+    // Stub fallback uses 450x450 since library is not loaded in the harness page
     const parsed = PNG.sync.read(png);
-    expect(parsed.width).toBe(454);
-    expect(parsed.height).toBe(454);
+    expect(parsed.width).toBe(450);
+    expect(parsed.height).toBe(450);
   });
 
   it("renders stub magenta fill when library not loaded", async () => {
     const png = await renderer.render({
       watchfaceXml: "<WatchFace/>",
       assets: new Map(),
-      width: 100,
-      height: 100,
+      width: 450,
+      height: 450,
       time: new Date("2024-01-15T10:10:00"),
       ambient: false,
     });
 
     const parsed = PNG.sync.read(png);
     // Check center pixel is magenta (255, 0, 255)
-    const cx = 50;
-    const cy = 50;
-    const idx = (cy * 100 + cx) * 4;
+    const cx = 225;
+    const cy = 225;
+    const idx = (cy * 450 + cx) * 4;
     expect(parsed.data[idx]).toBe(255); // R
     expect(parsed.data[idx + 1]).toBe(0); // G
     expect(parsed.data[idx + 2]).toBe(255); // B
