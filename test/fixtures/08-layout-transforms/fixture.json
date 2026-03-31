@@ -1,0 +1,13 @@
+{
+  "name": "Layout & Transforms",
+  "description": "Validates Group and PartDraw container rendering: positioning, rotation, alpha, scaling, and nested transforms.",
+  "scenarios": [
+    {
+      "name": "static",
+      "time": "2024-01-15T10:10:00",
+      "ambient": false,
+      "threshold": 0.05,
+      "maxDiffPixelPercent": 1.0
+    }
+  ]
+}

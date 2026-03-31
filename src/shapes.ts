@@ -1,4 +1,5 @@
 import { applyFill, applyStroke } from "./styles.js";
+import { renderGroup } from "./layout.js";
 
 export function renderElement(
   ctx: CanvasRenderingContext2D,
@@ -9,10 +10,7 @@ export function renderElement(
   switch (tag) {
     case "Group":
     case "PartDraw":
-      // Phase 2: pass through containers without applying transforms
-      for (const child of el.children) {
-        renderElement(ctx, child);
-      }
+      renderGroup(ctx, el);
       break;
     case "Arc":
       renderArc(ctx, el);
