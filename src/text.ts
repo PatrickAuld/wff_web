@@ -53,7 +53,8 @@ function applyFont(ctx: CanvasRenderingContext2D, spec: FontSpec): void {
   ctx.font = `${spec.style} ${spec.weight} ${spec.size}px ${spec.family}`;
   ctx.fillStyle = spec.color;
   if (spec.letterSpacing !== 0) {
-    (ctx as any).letterSpacing = `${spec.letterSpacing}px`;
+    const spacingPx = spec.letterSpacing * spec.size;
+    (ctx as any).letterSpacing = `${spacingPx}px`;
   } else {
     (ctx as any).letterSpacing = "0px";
   }

@@ -12,14 +12,18 @@ const HARNESS_HTML_PATH = resolve(
 export class CanvasRenderer {
   private browser: Browser | null = null;
   private htmlContent: string | null = null;
+  private librarySource: string | null = null;
 
   async init(): Promise<void> {
     this.browser = await chromium.launch({ headless: true });
     this.htmlContent = await readFile(HARNESS_HTML_PATH, "utf-8");
+    // Read the compiled library to inject as a string
+    const distPath = resolve(import.meta.dirname, "../../dist/index.js");
+    this.librarySource = await readFile(distPath, "utf-8");
   }
 
   async render(config: RenderConfig): Promise<Buffer> {
-    if (!this.browser || !this.htmlContent) {
+    if (!this.browser || !this.htmlContent || !this.librarySource) {
       throw new Error("CanvasRenderer not initialized. Call init() first.");
     }
 
@@ -28,6 +32,11 @@ export class CanvasRenderer {
     await page.setContent(this.htmlContent, {
       waitUntil: "domcontentloaded",
     });
+
+    // Inject the library code directly
+    const libScript = this.librarySource.replace(/export\s*\{[^}]*\}/, "") +
+      "\nwindow.renderWatchFace = renderWatchFace;";
+    await page.evaluate(libScript);
 
     // Pass render config to the page and get back a PNG data URL
     const dataUrl = await page.evaluate(
@@ -53,21 +62,12 @@ export class CanvasRenderer {
         }
 
         // Use the wff-web library — pass canvas + options, library handles sizing
-        if (typeof (window as any).renderWatchFace === "function") {
-          (window as any).renderWatchFace(canvas, {
-            xml,
-            assets,
-            time: new Date(timeIso),
-            ambient,
-          });
-        } else {
-          // Stub: fill with magenta to clearly show "not implemented"
-          canvas.width = 450;
-          canvas.height = 450;
-          const ctx = canvas.getContext("2d")!;
-          ctx.fillStyle = "#FF00FF";
-          ctx.fillRect(0, 0, 450, 450);
-        }
+        await (window as any).renderWatchFace(canvas, {
+          xml,
+          assets,
+          time: new Date(timeIso),
+          ambient,
+        });
 
         return canvas.toDataURL("image/png");
       },
@@ -94,6 +94,7 @@ export class CanvasRenderer {
       await this.browser.close();
       this.browser = null;
       this.htmlContent = null;
+      this.librarySource = null;
     }
   }
 }

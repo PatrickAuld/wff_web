@@ -1,0 +1,10 @@
+<WatchFace width="450" height="450" clipShape="CIRCLE">
+  <Metadata key="CLOCK_TYPE" value="DIGITAL"/>
+  <Metadata key="PREVIEW_TIME" value="10:10:00"/>
+  <Scene backgroundColor="#000000">
+    <!-- Red image fills the entire watch face background -->
+    <PartImage x="0" y="0" width="450" height="450">
+      <Image resource="watch_bg"/>
+    </PartImage>
+  </Scene>
+</WatchFace>

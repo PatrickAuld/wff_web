@@ -39,9 +39,9 @@ describe("Phase 6 – Text Rendering", () => {
     time = "2024-01-15T10:10:00"
   ) {
     return page.evaluate(
-      ({ xml, x, y, time }) => {
+      async ({ xml, x, y, time }) => {
         const canvas = document.getElementById("c") as HTMLCanvasElement;
-        (window as any).renderWatchFace(canvas, {
+        await (window as any).renderWatchFace(canvas, {
           xml,
           time: new Date(time),
           ambient: false,
@@ -64,9 +64,9 @@ describe("Phase 6 – Text Rendering", () => {
     time = "2024-01-15T10:10:00"
   ) {
     return page.evaluate(
-      ({ xml, regionX, regionY, regionW, regionH, time }) => {
+      async ({ xml, regionX, regionY, regionW, regionH, time }) => {
         const canvas = document.getElementById("c") as HTMLCanvasElement;
-        (window as any).renderWatchFace(canvas, {
+        await (window as any).renderWatchFace(canvas, {
           xml,
           time: new Date(time),
           ambient: false,
@@ -240,9 +240,9 @@ describe("Phase 6 – Text Rendering", () => {
       </WatchFace>`;
       // Sample pixels in the text area and find one that is red
       const pixels = await page.evaluate(
-        ({ xml }) => {
+        async ({ xml }) => {
           const canvas = document.getElementById("c") as HTMLCanvasElement;
-          (window as any).renderWatchFace(canvas, {
+          await (window as any).renderWatchFace(canvas, {
             xml,
             time: new Date("2024-01-15T10:10:00"),
             ambient: false,

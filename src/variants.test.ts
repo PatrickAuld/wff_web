@@ -39,9 +39,9 @@ describe("Phase 5 – Variants", () => {
     ambient = false
   ) {
     return page.evaluate(
-      ({ xml, x, y, ambient }) => {
+      async ({ xml, x, y, ambient }) => {
         const canvas = document.getElementById("c") as HTMLCanvasElement;
-        (window as any).renderWatchFace(canvas, {
+        await (window as any).renderWatchFace(canvas, {
           xml,
           time: new Date("2024-01-15T10:10:00"),
           ambient,

@@ -1,0 +1,13 @@
+{
+  "name": "Images",
+  "description": "PartImage element rendering a bitmap asset scaled to the container dimensions.",
+  "scenarios": [
+    {
+      "name": "default",
+      "time": "2024-01-15T10:10:00",
+      "ambient": false,
+      "threshold": 0.1,
+      "maxDiffPixelPercent": 5.0
+    }
+  ]
+}

@@ -22,12 +22,12 @@ import type { RenderContext } from "./shapes.js";
  *     <Default>...</Default>
  *   </Condition>
  */
-export function renderCondition(
+export async function renderCondition(
   ctx: CanvasRenderingContext2D,
   el: Element,
-  renderChild: (ctx: CanvasRenderingContext2D, el: Element, renderCtx: RenderContext) => void,
+  renderChild: (ctx: CanvasRenderingContext2D, el: Element, renderCtx: RenderContext) => Promise<void>,
   renderCtx: RenderContext
-): void {
+): Promise<void> {
   // 1. Evaluate named expressions from the Expressions container
   const namedResults: Record<string, number | string> = {};
   const expressionsEl = el.querySelector(":scope > Expressions");
@@ -58,7 +58,7 @@ export function renderCondition(
       const result = evaluateExpression(expr, augCtx);
       if (result) {
         for (const grandchild of child.children) {
-          renderChild(ctx, grandchild, augRenderCtx);
+          await renderChild(ctx, grandchild, augRenderCtx);
         }
         return;
       }
@@ -69,7 +69,7 @@ export function renderCondition(
   for (const child of el.children) {
     if (child.tagName === "Default") {
       for (const grandchild of child.children) {
-        renderChild(ctx, grandchild, augRenderCtx);
+        await renderChild(ctx, grandchild, augRenderCtx);
       }
       return;
     }

@@ -1,5 +1,6 @@
 import { applyVariants } from "./variants.js";
 import { hasMasking, renderWithMasking, applyBlendMode } from "./masking.js";
+import { applyTransforms } from "./animation.js";
 import type { RenderContext } from "./shapes.js";
 
 export async function renderGroup(
@@ -10,6 +11,8 @@ export async function renderGroup(
 ): Promise<void> {
   // Apply ambient variants before reading attributes
   applyVariants(el, renderCtx.ambient);
+  // Apply animation transforms (may mutate element attributes)
+  applyTransforms(el, renderCtx.expressionCtx, renderCtx.elapsedMs ?? 0);
 
   const x = parseFloat(el.getAttribute("x") ?? "0");
   const y = parseFloat(el.getAttribute("y") ?? "0");

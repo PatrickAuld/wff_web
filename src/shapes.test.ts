@@ -34,9 +34,9 @@ describe("Phase 2 – Shapes & Styles", () => {
 
   function renderAndSample(page: Page, xml: string, x: number, y: number) {
     return page.evaluate(
-      ({ xml, x, y }) => {
+      async ({ xml, x, y }) => {
         const canvas = document.getElementById("c") as HTMLCanvasElement;
-        (window as any).renderWatchFace(canvas, {
+        await (window as any).renderWatchFace(canvas, {
           xml,
           time: new Date("2024-01-15T10:10:00"),
           ambient: false,

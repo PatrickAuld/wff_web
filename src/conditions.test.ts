@@ -39,9 +39,9 @@ describe("Phase 5 – Conditions", () => {
     time = "2024-01-15T10:10:00"
   ) {
     return page.evaluate(
-      ({ xml, x, y, time }) => {
+      async ({ xml, x, y, time }) => {
         const canvas = document.getElementById("c") as HTMLCanvasElement;
-        (window as any).renderWatchFace(canvas, {
+        await (window as any).renderWatchFace(canvas, {
           xml,
           time: new Date(time),
           ambient: false,

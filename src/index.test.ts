@@ -44,9 +44,9 @@ describe("renderWatchFace – Phase 1", () => {
 
   it("parses width and height from WatchFace root", async () => {
     const page = await createPage();
-    const dims = await page.evaluate((xml) => {
+    const dims = await page.evaluate(async (xml) => {
       const canvas = document.getElementById("c") as HTMLCanvasElement;
-      (window as any).renderWatchFace(canvas, {
+      await (window as any).renderWatchFace(canvas, {
         xml,
         time: new Date("2024-01-15T10:10:00"),
         ambient: false,
@@ -61,9 +61,9 @@ describe("renderWatchFace – Phase 1", () => {
 
   it("collects metadata from Metadata elements", async () => {
     const page = await createPage();
-    const meta = await page.evaluate((xml) => {
+    const meta = await page.evaluate(async (xml) => {
       const canvas = document.getElementById("c") as HTMLCanvasElement;
-      const result = (window as any).renderWatchFace(canvas, {
+      const result = await (window as any).renderWatchFace(canvas, {
         xml,
         time: new Date("2024-01-15T10:10:00"),
         ambient: false,
@@ -80,9 +80,9 @@ describe("renderWatchFace – Phase 1", () => {
     const page = await createPage();
     // XML without clipShape — canvas should still be resized, no clip applied
     const xml = `<WatchFace width="200" height="200"><Scene/></WatchFace>`;
-    const dims = await page.evaluate((xml) => {
+    const dims = await page.evaluate(async (xml) => {
       const canvas = document.getElementById("c") as HTMLCanvasElement;
-      (window as any).renderWatchFace(canvas, {
+      await (window as any).renderWatchFace(canvas, {
         xml,
         time: new Date("2024-01-15T10:10:00"),
         ambient: false,
@@ -98,9 +98,9 @@ describe("renderWatchFace – Phase 1", () => {
   it("fills black background by default", async () => {
     const page = await createPage();
     const xml = `<WatchFace width="100" height="100"><Scene/></WatchFace>`;
-    const pixel = await page.evaluate((xml) => {
+    const pixel = await page.evaluate(async (xml) => {
       const canvas = document.getElementById("c") as HTMLCanvasElement;
-      (window as any).renderWatchFace(canvas, {
+      await (window as any).renderWatchFace(canvas, {
         xml,
         time: new Date("2024-01-15T10:10:00"),
         ambient: false,
@@ -123,9 +123,9 @@ describe("renderWatchFace – Phase 1", () => {
     const xml = `<WatchFace width="100" height="100" clipShape="CIRCLE">
       <Scene backgroundColor="#FFFFFF"/>
     </WatchFace>`;
-    const pixels = await page.evaluate((xml) => {
+    const pixels = await page.evaluate(async (xml) => {
       const canvas = document.getElementById("c") as HTMLCanvasElement;
-      (window as any).renderWatchFace(canvas, {
+      await (window as any).renderWatchFace(canvas, {
         xml,
         time: new Date("2024-01-15T10:10:00"),
         ambient: false,
@@ -154,9 +154,9 @@ describe("renderWatchFace – Phase 1", () => {
     const xml = `<WatchFace width="100" height="100">
       <Scene backgroundColor="#FF0000"/>
     </WatchFace>`;
-    const pixel = await page.evaluate((xml) => {
+    const pixel = await page.evaluate(async (xml) => {
       const canvas = document.getElementById("c") as HTMLCanvasElement;
-      (window as any).renderWatchFace(canvas, {
+      await (window as any).renderWatchFace(canvas, {
         xml,
         time: new Date("2024-01-15T10:10:00"),
         ambient: false,
