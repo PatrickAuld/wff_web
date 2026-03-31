@@ -15,7 +15,7 @@ export async function saveArtifacts(
   await mkdir(artifactDir, { recursive: true });
 
   await Promise.all([
-    writeFile(join(artifactDir, "emulator.png"), result.emulatorImage),
+    writeFile(join(artifactDir, "baseline.png"), result.baselineImage),
     writeFile(join(artifactDir, "canvas.png"), result.canvasImage),
     writeFile(join(artifactDir, "diff.png"), result.diffImage),
     writeFile(

@@ -132,8 +132,8 @@ function renderFixtures(results: ScenarioResult[]): string {
           </div>
           <div class="images">
             <figure>
-              <figcaption>Emulator (reference)</figcaption>
-              <img src="${imgBase}/emulator.png" alt="Emulator">
+              <figcaption>Baseline (golden)</figcaption>
+              <img src="${imgBase}/baseline.png" alt="Baseline">
             </figure>
             <figure>
               <figcaption>Canvas (web library)</figcaption>

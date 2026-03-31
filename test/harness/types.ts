@@ -12,17 +12,8 @@ export interface Scenario {
   name: string;
   time: string; // ISO 8601 e.g. "2024-01-15T10:10:30"
   ambient: boolean;
-  complications?: Record<string, ComplicationData>;
   threshold?: number; // pixelmatch threshold, default 0.1
   maxDiffPixelPercent?: number; // max % diff pixels to pass, default 1.0
-}
-
-export interface ComplicationData {
-  type: string;
-  shortText?: string;
-  longText?: string;
-  icon?: string;
-  rangedValue?: number;
 }
 
 /** A loaded fixture ready for testing */
@@ -40,7 +31,7 @@ export interface ComparisonResult {
   diffPixelPercent: number;
   totalPixels: number;
   diffImage: Buffer;
-  emulatorImage: Buffer;
+  baselineImage: Buffer;
   canvasImage: Buffer;
 }
 
@@ -52,7 +43,6 @@ export interface RenderConfig {
   height: number;
   time: Date;
   ambient: boolean;
-  complications?: Record<string, ComplicationData>;
 }
 
 /** Default values */

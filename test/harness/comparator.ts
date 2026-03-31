@@ -13,7 +13,7 @@ interface CompareOptions {
 
 /** Compare two PNG images and return a detailed result */
 export function compareImages(
-  emulatorPng: Buffer,
+  baselinePng: Buffer,
   canvasPng: Buffer,
   options: CompareOptions = {}
 ): ComparisonResult {
@@ -24,23 +24,23 @@ export function compareImages(
   const height = options.height ?? DEFAULTS.watchHeight;
   const useCircularMask = options.circularMask ?? true;
 
-  const emulatorImg = PNG.sync.read(emulatorPng);
+  const baselineImg = PNG.sync.read(baselinePng);
   const canvasImg = PNG.sync.read(canvasPng);
 
-  // Resize to match if needed (emulator may capture at different resolution)
-  const emu = resizeToMatch(emulatorImg, width, height);
+  // Resize to match if needed (baseline may be at different resolution)
+  const baseline = resizeToMatch(baselineImg, width, height);
   const cvs = resizeToMatch(canvasImg, width, height);
 
   // Apply circular mask to both images (set pixels outside circle to transparent black)
   if (useCircularMask) {
-    applyCircularMask(emu, width, height);
+    applyCircularMask(baseline, width, height);
     applyCircularMask(cvs, width, height);
   }
 
   const diffPng = new PNG({ width, height });
 
   const diffPixelCount = pixelmatch(
-    emu.data,
+    baseline.data,
     cvs.data,
     diffPng.data,
     width,
@@ -61,7 +61,7 @@ export function compareImages(
     diffPixelPercent,
     totalPixels,
     diffImage: PNG.sync.write(diffPng),
-    emulatorImage: emulatorPng,
+    baselineImage: baselinePng,
     canvasImage: canvasPng,
   };
 }
