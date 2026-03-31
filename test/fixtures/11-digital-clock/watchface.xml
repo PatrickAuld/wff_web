@@ -1,0 +1,36 @@
+<WatchFace width="450" height="450" clipShape="CIRCLE">
+  <Metadata key="CLOCK_TYPE" value="DIGITAL"/>
+  <Metadata key="PREVIEW_TIME" value="10:10:00"/>
+  <Scene backgroundColor="#1A1A2E">
+    <!-- Background circle -->
+    <Group name="background" x="0" y="0" width="450" height="450">
+      <PartDraw x="0" y="0" width="450" height="450">
+        <Arc centerX="225" centerY="225" width="450" height="450"
+             startAngle="0" endAngle="360">
+          <Fill color="#1A1A2E"/>
+        </Arc>
+      </PartDraw>
+    </Group>
+
+    <!-- Digital time display (HH:mm) -->
+    <DigitalClock x="75" y="150" width="300" height="100">
+      <TimeText format="HH:mm" align="CENTER" hourFormat="24">
+        <Font family="sans-serif" size="72" color="#E0E0FF" weight="LIGHT"/>
+      </TimeText>
+    </DigitalClock>
+
+    <!-- Day of week -->
+    <DigitalClock x="75" y="265" width="300" height="50">
+      <TimeText format="EEE" align="CENTER">
+        <Font family="sans-serif" size="28" color="#9090CC" weight="NORMAL"/>
+      </TimeText>
+    </DigitalClock>
+
+    <!-- Seconds in smaller text -->
+    <DigitalClock x="175" y="320" width="100" height="40">
+      <TimeText format="ss" align="CENTER">
+        <Font family="sans-serif" size="24" color="#6060AA"/>
+      </TimeText>
+    </DigitalClock>
+  </Scene>
+</WatchFace>

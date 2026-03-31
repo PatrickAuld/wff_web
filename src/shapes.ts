@@ -2,6 +2,7 @@ import { applyFill, applyStroke } from "./styles.js";
 import { renderGroup } from "./layout.js";
 import { renderCondition } from "./conditions.js";
 import { applyVariants } from "./variants.js";
+import { renderPartText, renderDigitalClock } from "./text.js";
 import type { ExpressionContext } from "./expressions.js";
 
 export interface RenderContext {
@@ -43,6 +44,12 @@ export function renderElement(
     case "Line":
       applyVariants(el, renderCtx.ambient);
       renderLine(ctx, el);
+      break;
+    case "PartText":
+      renderPartText(ctx, el, renderCtx);
+      break;
+    case "DigitalClock":
+      renderDigitalClock(ctx, el, renderCtx);
       break;
   }
 }
