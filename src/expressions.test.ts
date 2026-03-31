@@ -103,12 +103,13 @@ describe("logical expressions", () => {
     expect(evaluateExpression("1 && 0", emptyCtx)).toBe(0);
   });
 
-  it("evaluates logical OR (truthy)", () => {
-    expect(evaluateExpression("0 || 1", emptyCtx)).toBeTruthy();
+  it("evaluates logical OR (truthy) returns normalized 1", () => {
+    expect(evaluateExpression("0 || 1", emptyCtx)).toBe(1);
+    expect(evaluateExpression("5 || 0", emptyCtx)).toBe(1);
   });
 
-  it("evaluates logical OR (falsy)", () => {
-    expect(evaluateExpression("0 || 0", emptyCtx)).toBeFalsy();
+  it("evaluates logical OR (falsy) returns 0", () => {
+    expect(evaluateExpression("0 || 0", emptyCtx)).toBe(0);
   });
 
   it("evaluates logical NOT (false → 1)", () => {
@@ -382,6 +383,22 @@ describe("built-in functions", () => {
 
   it("cos(0) → 1", () => {
     expect(evaluateExpression("cos(0)", emptyCtx)).toBeCloseTo(1);
+  });
+
+  it("tan(0) → 0", () => {
+    expect(evaluateExpression("tan(0)", emptyCtx)).toBeCloseTo(0);
+  });
+
+  it("asin(1) → PI/2", () => {
+    expect(evaluateExpression("asin(1)", emptyCtx)).toBeCloseTo(Math.PI / 2);
+  });
+
+  it("acos(1) → 0", () => {
+    expect(evaluateExpression("acos(1)", emptyCtx)).toBeCloseTo(0);
+  });
+
+  it("atan(0) → 0", () => {
+    expect(evaluateExpression("atan(0)", emptyCtx)).toBeCloseTo(0);
   });
 
   it("deg converts radians to degrees", () => {

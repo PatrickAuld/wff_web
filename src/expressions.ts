@@ -490,7 +490,7 @@ function evalNode(node: ASTNode, ctx: ExpressionContext): number | string {
         case "&&":
           return left && right ? 1 : 0;
         case "||":
-          return left || right ? left || right : 0;
+          return (left || right) ? 1 : 0;
         case "|":
           return (left as number) | (right as number);
         case "&":
