@@ -26,7 +26,7 @@ describe("visual regression", async () => {
 
     describe(fixtureDirName, () => {
       for (const scenario of fixture.config.scenarios) {
-        it(scenario.name, async () => {
+        it(scenario.name, async (ctx) => {
           const canvasPng = await renderer.render({
             watchfaceXml: fixture.xml,
             assets: fixture.assets,
@@ -38,7 +38,8 @@ describe("visual regression", async () => {
 
           const baselinePath = join(fixture.dir, "baselines", `${scenario.name}.png`);
           if (!existsSync(baselinePath)) {
-            return; // Skip — no baseline yet
+            ctx.skip();
+            return;
           }
           const baselinePng = readFileSync(baselinePath);
 

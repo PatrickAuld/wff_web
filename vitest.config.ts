@@ -6,8 +6,7 @@ export default defineConfig({
     hookTimeout: 300_000,
     passWithNoTests: true,
     sequence: { concurrent: false },
-    // Exclude visual tests from the default `pnpm test` run
-    // since they require a WearOS emulator.
+    // Exclude visual tests from the default `pnpm test` run.
     // Run visual tests explicitly with `pnpm test:visual`
     exclude: ["test/visual/**", "node_modules/**", ".worktrees/**"],
   },

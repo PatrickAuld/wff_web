@@ -1,7 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import type { ComparisonResult } from "./types.js";
-import type { FixtureConfig, Scenario } from "./types.js";
 
 const RESULTS_DIR = resolve(import.meta.dirname, "../../test/results");
 
