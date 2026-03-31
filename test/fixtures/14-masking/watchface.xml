@@ -1,0 +1,13 @@
+<WatchFace width="450" height="450">
+  <Scene backgroundColor="#000000">
+    <Group x="100" y="100" width="250" height="250">
+      <!-- Red rectangle masked by green ellipse: only the intersection is visible -->
+      <Rectangle x="0" y="0" width="250" height="250" renderMode="SOURCE">
+        <Fill color="#FF0000"/>
+      </Rectangle>
+      <Ellipse x="25" y="25" width="200" height="200" renderMode="MASK">
+        <Fill color="#00FF00"/>
+      </Ellipse>
+    </Group>
+  </Scene>
+</WatchFace>

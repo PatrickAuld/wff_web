@@ -1,0 +1,13 @@
+{
+  "name": "Masking & Blend Modes",
+  "description": "Validates renderMode SOURCE/MASK compositing: red rectangle masked by green ellipse, showing only the intersection.",
+  "scenarios": [
+    {
+      "name": "static",
+      "time": "2024-01-15T10:10:00",
+      "ambient": false,
+      "threshold": 0.05,
+      "maxDiffPixelPercent": 2.0
+    }
+  ]
+}

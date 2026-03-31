@@ -1,12 +1,13 @@
 import { applyVariants } from "./variants.js";
+import { hasMasking, renderWithMasking, applyBlendMode } from "./masking.js";
 import type { RenderContext } from "./shapes.js";
 
-export function renderGroup(
+export async function renderGroup(
   ctx: CanvasRenderingContext2D,
   el: Element,
-  renderChild: (ctx: CanvasRenderingContext2D, el: Element, renderCtx: RenderContext) => void,
+  renderChild: (ctx: CanvasRenderingContext2D, el: Element, renderCtx: RenderContext) => Promise<void>,
   renderCtx: RenderContext
-): void {
+): Promise<void> {
   // Apply ambient variants before reading attributes
   applyVariants(el, renderCtx.ambient);
 
@@ -37,10 +38,18 @@ export function renderGroup(
   // Alpha compositing (multiply with existing globalAlpha)
   ctx.globalAlpha *= alpha / 255;
 
-  // Render children depth-first (skip Variant elements — handled by applyVariants)
-  for (const child of el.children) {
-    if (child.tagName !== "Variant") {
-      renderChild(ctx, child, renderCtx);
+  // Apply blend mode if specified
+  applyBlendMode(ctx, el);
+
+  // Render children — use offscreen compositing if any child has renderMode
+  if (hasMasking(el)) {
+    await renderWithMasking(ctx, el, w, h, renderChild, renderCtx);
+  } else {
+    // Normal child rendering (skip Variant elements — handled by applyVariants)
+    for (const child of el.children) {
+      if (child.tagName !== "Variant") {
+        await renderChild(ctx, child, renderCtx);
+      }
     }
   }
 

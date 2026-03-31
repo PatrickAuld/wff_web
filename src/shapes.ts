@@ -2,6 +2,7 @@ import { applyFill, applyStroke } from "./styles.js";
 import { renderGroup } from "./layout.js";
 import { renderCondition } from "./conditions.js";
 import { applyVariants } from "./variants.js";
+import { applyBlendMode } from "./masking.js";
 import { renderPartText, renderDigitalClock } from "./text.js";
 import { renderPartImage } from "./images.js";
 import { renderAnalogClock } from "./clock.js";
@@ -30,22 +31,27 @@ export async function renderElement(
       break;
     case "Arc":
       applyVariants(el, renderCtx.ambient);
+      applyBlendMode(ctx, el);
       renderArc(ctx, el);
       break;
     case "Rectangle":
       applyVariants(el, renderCtx.ambient);
+      applyBlendMode(ctx, el);
       renderRectangle(ctx, el);
       break;
     case "RoundRectangle":
       applyVariants(el, renderCtx.ambient);
+      applyBlendMode(ctx, el);
       renderRoundRectangle(ctx, el);
       break;
     case "Ellipse":
       applyVariants(el, renderCtx.ambient);
+      applyBlendMode(ctx, el);
       renderEllipse(ctx, el);
       break;
     case "Line":
       applyVariants(el, renderCtx.ambient);
+      applyBlendMode(ctx, el);
       renderLine(ctx, el);
       break;
     case "PartText":
