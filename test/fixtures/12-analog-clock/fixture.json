@@ -1,0 +1,11 @@
+{
+  "scenarios": [
+    {
+      "name": "10:10:30",
+      "time": "2024-01-15T10:10:30",
+      "ambient": false,
+      "threshold": 0.1,
+      "maxDiffPixelPercent": 1.0
+    }
+  ]
+}

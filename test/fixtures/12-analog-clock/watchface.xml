@@ -1,0 +1,27 @@
+<WatchFace width="450" height="450">
+  <Scene backgroundColor="#000000">
+    <AnalogClock x="0" y="0" width="450" height="450">
+      <HourHand x="220" y="100" width="10" height="125" pivotX="0.5" pivotY="1.0">
+        <PartDraw x="0" y="0" width="10" height="125">
+          <Rectangle x="0" y="0" width="10" height="125">
+            <Fill color="#FFFFFF"/>
+          </Rectangle>
+        </PartDraw>
+      </HourHand>
+      <MinuteHand x="222" y="50" width="6" height="175" pivotX="0.5" pivotY="1.0">
+        <PartDraw x="0" y="0" width="6" height="175">
+          <Rectangle x="0" y="0" width="6" height="175">
+            <Fill color="#CCCCCC"/>
+          </Rectangle>
+        </PartDraw>
+      </MinuteHand>
+      <SecondHand x="224" y="75" width="2" height="150" pivotX="0.5" pivotY="1.0">
+        <PartDraw x="0" y="0" width="2" height="150">
+          <Rectangle x="0" y="0" width="2" height="150">
+            <Fill color="#FF0000"/>
+          </Rectangle>
+        </PartDraw>
+      </SecondHand>
+    </AnalogClock>
+  </Scene>
+</WatchFace>

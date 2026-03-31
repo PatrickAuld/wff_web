@@ -3,27 +3,30 @@ import { renderGroup } from "./layout.js";
 import { renderCondition } from "./conditions.js";
 import { applyVariants } from "./variants.js";
 import { renderPartText, renderDigitalClock } from "./text.js";
+import { renderPartImage } from "./images.js";
+import { renderAnalogClock } from "./clock.js";
 import type { ExpressionContext } from "./expressions.js";
 
 export interface RenderContext {
   expressionCtx: ExpressionContext;
   ambient: boolean;
+  assets: Map<string, ArrayBuffer>;
 }
 
-export function renderElement(
+export async function renderElement(
   ctx: CanvasRenderingContext2D,
   el: Element,
   renderCtx: RenderContext
-): void {
+): Promise<void> {
   const tag = el.tagName;
 
   switch (tag) {
     case "Group":
     case "PartDraw":
-      renderGroup(ctx, el, renderElement, renderCtx);
+      await renderGroup(ctx, el, renderElement, renderCtx);
       break;
     case "Condition":
-      renderCondition(ctx, el, renderElement, renderCtx);
+      await renderCondition(ctx, el, renderElement, renderCtx);
       break;
     case "Arc":
       applyVariants(el, renderCtx.ambient);
@@ -50,6 +53,12 @@ export function renderElement(
       break;
     case "DigitalClock":
       renderDigitalClock(ctx, el, renderCtx);
+      break;
+    case "PartImage":
+      await renderPartImage(ctx, el, renderCtx, renderCtx.assets);
+      break;
+    case "AnalogClock":
+      await renderAnalogClock(ctx, el, renderElement, renderCtx);
       break;
   }
 }
