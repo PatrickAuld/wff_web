@@ -1,0 +1,14 @@
+<WatchFace width="450" height="450">
+  <Scene backgroundColor="#000000">
+    <Group x="0" y="0" width="450" height="450">
+      <!-- Expression-driven rotation: hour hand angle -->
+      <Group x="200" y="200" width="50" height="200"
+             angle="[HOUR_0_23] * 30 + [MINUTE] / 2"
+             pivotX="0.5" pivotY="1.0">
+        <Rectangle x="0" y="0" width="50" height="200">
+          <Fill color="#FFFFFF"/>
+        </Rectangle>
+      </Group>
+    </Group>
+  </Scene>
+</WatchFace>
