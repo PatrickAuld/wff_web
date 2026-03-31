@@ -1,8 +1,15 @@
+import { applyVariants } from "./variants.js";
+import type { RenderContext } from "./shapes.js";
+
 export function renderGroup(
   ctx: CanvasRenderingContext2D,
   el: Element,
-  renderChild: (ctx: CanvasRenderingContext2D, el: Element) => void
+  renderChild: (ctx: CanvasRenderingContext2D, el: Element, renderCtx: RenderContext) => void,
+  renderCtx: RenderContext
 ): void {
+  // Apply ambient variants before reading attributes
+  applyVariants(el, renderCtx.ambient);
+
   const x = parseFloat(el.getAttribute("x") ?? "0");
   const y = parseFloat(el.getAttribute("y") ?? "0");
   const w = parseFloat(el.getAttribute("width") ?? "0");
@@ -30,9 +37,11 @@ export function renderGroup(
   // Alpha compositing (multiply with existing globalAlpha)
   ctx.globalAlpha *= alpha / 255;
 
-  // Render children depth-first
+  // Render children depth-first (skip Variant elements — handled by applyVariants)
   for (const child of el.children) {
-    renderChild(ctx, child);
+    if (child.tagName !== "Variant") {
+      renderChild(ctx, child, renderCtx);
+    }
   }
 
   ctx.restore();

@@ -1,0 +1,20 @@
+{
+  "name": "Ambient Mode Variants",
+  "description": "Variant elements override Group attributes in ambient mode.",
+  "scenarios": [
+    {
+      "name": "active",
+      "time": "2024-01-15T10:10:00",
+      "ambient": false,
+      "threshold": 0.1,
+      "maxDiffPixelPercent": 5.0
+    },
+    {
+      "name": "ambient",
+      "time": "2024-01-15T10:10:00",
+      "ambient": true,
+      "threshold": 0.1,
+      "maxDiffPixelPercent": 5.0
+    }
+  ]
+}

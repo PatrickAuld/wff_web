@@ -1,0 +1,27 @@
+{
+  "name": "Conditions",
+  "description": "Condition element with time-based Compare branches and Default fallback.",
+  "scenarios": [
+    {
+      "name": "morning",
+      "time": "2024-01-15T09:30:00",
+      "ambient": false,
+      "threshold": 0.1,
+      "maxDiffPixelPercent": 5.0
+    },
+    {
+      "name": "afternoon",
+      "time": "2024-01-15T14:30:00",
+      "ambient": false,
+      "threshold": 0.1,
+      "maxDiffPixelPercent": 5.0
+    },
+    {
+      "name": "night",
+      "time": "2024-01-15T02:00:00",
+      "ambient": false,
+      "threshold": 0.1,
+      "maxDiffPixelPercent": 5.0
+    }
+  ]
+}

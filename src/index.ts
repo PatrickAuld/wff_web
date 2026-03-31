@@ -1,10 +1,13 @@
 import { renderElement } from "./shapes.js";
+import { buildDataSources } from "./expressions.js";
+import type { RenderContext } from "./shapes.js";
 
 export interface RenderOptions {
   xml: string;
   assets?: Map<string, ArrayBuffer>;
   time: Date;
   ambient: boolean;
+  configuration?: Record<string, string | number | boolean>;
 }
 
 export interface RenderResult {
@@ -63,10 +66,17 @@ export function renderWatchFace(
   ctx.fillStyle = backgroundColor;
   ctx.fillRect(0, 0, width, height);
 
+  // Build expression context from time and configuration
+  const expressionCtx = buildDataSources(options.time, options.configuration);
+  const renderCtx: RenderContext = {
+    expressionCtx,
+    ambient: options.ambient,
+  };
+
   // Walk Scene children and render shapes
   if (scene) {
     for (const child of scene.children) {
-      renderElement(ctx, child);
+      renderElement(ctx, child, renderCtx);
     }
   }
 

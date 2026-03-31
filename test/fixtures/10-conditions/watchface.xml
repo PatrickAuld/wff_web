@@ -1,0 +1,44 @@
+<WatchFace width="450" height="450">
+  <Metadata key="CLOCK_TYPE" value="DIGITAL"/>
+  <Metadata key="PREVIEW_TIME" value="10:10:00"/>
+  <Scene backgroundColor="#000000">
+    <Condition>
+      <Expressions>
+        <Expression name="hour" expression="[HOUR_0_23]"/>
+      </Expressions>
+      <!-- Morning: 6–11 (gold background) -->
+      <Compare expression="[hour] >= 6 &amp;&amp; [hour] &lt; 12">
+        <Group x="0" y="0" width="450" height="450">
+          <PartDraw x="0" y="0" width="450" height="450">
+            <Arc centerX="225" centerY="225" width="450" height="450"
+                 startAngle="0" endAngle="360">
+              <Fill color="#FFD700"/>
+            </Arc>
+          </PartDraw>
+        </Group>
+      </Compare>
+      <!-- Afternoon: 12–17 (orange background) -->
+      <Compare expression="[hour] >= 12 &amp;&amp; [hour] &lt; 18">
+        <Group x="0" y="0" width="450" height="450">
+          <PartDraw x="0" y="0" width="450" height="450">
+            <Arc centerX="225" centerY="225" width="450" height="450"
+                 startAngle="0" endAngle="360">
+              <Fill color="#FF8C00"/>
+            </Arc>
+          </PartDraw>
+        </Group>
+      </Compare>
+      <!-- Night: default (midnight blue) -->
+      <Default>
+        <Group x="0" y="0" width="450" height="450">
+          <PartDraw x="0" y="0" width="450" height="450">
+            <Arc centerX="225" centerY="225" width="450" height="450"
+                 startAngle="0" endAngle="360">
+              <Fill color="#191970"/>
+            </Arc>
+          </PartDraw>
+        </Group>
+      </Default>
+    </Condition>
+  </Scene>
+</WatchFace>

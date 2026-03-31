@@ -1,30 +1,47 @@
 import { applyFill, applyStroke } from "./styles.js";
 import { renderGroup } from "./layout.js";
+import { renderCondition } from "./conditions.js";
+import { applyVariants } from "./variants.js";
+import type { ExpressionContext } from "./expressions.js";
+
+export interface RenderContext {
+  expressionCtx: ExpressionContext;
+  ambient: boolean;
+}
 
 export function renderElement(
   ctx: CanvasRenderingContext2D,
-  el: Element
+  el: Element,
+  renderCtx: RenderContext
 ): void {
   const tag = el.tagName;
 
   switch (tag) {
     case "Group":
     case "PartDraw":
-      renderGroup(ctx, el, renderElement);
+      renderGroup(ctx, el, renderElement, renderCtx);
+      break;
+    case "Condition":
+      renderCondition(ctx, el, renderElement, renderCtx);
       break;
     case "Arc":
+      applyVariants(el, renderCtx.ambient);
       renderArc(ctx, el);
       break;
     case "Rectangle":
+      applyVariants(el, renderCtx.ambient);
       renderRectangle(ctx, el);
       break;
     case "RoundRectangle":
+      applyVariants(el, renderCtx.ambient);
       renderRoundRectangle(ctx, el);
       break;
     case "Ellipse":
+      applyVariants(el, renderCtx.ambient);
       renderEllipse(ctx, el);
       break;
     case "Line":
+      applyVariants(el, renderCtx.ambient);
       renderLine(ctx, el);
       break;
   }
