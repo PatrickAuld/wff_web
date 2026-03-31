@@ -1,8 +1,7 @@
-import { renderElement } from "./shapes.js";
-
 export function renderGroup(
   ctx: CanvasRenderingContext2D,
-  el: Element
+  el: Element,
+  renderChild: (ctx: CanvasRenderingContext2D, el: Element) => void
 ): void {
   const x = parseFloat(el.getAttribute("x") ?? "0");
   const y = parseFloat(el.getAttribute("y") ?? "0");
@@ -33,7 +32,7 @@ export function renderGroup(
 
   // Render children depth-first
   for (const child of el.children) {
-    renderElement(ctx, child);
+    renderChild(ctx, child);
   }
 
   ctx.restore();

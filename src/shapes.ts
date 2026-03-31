@@ -10,7 +10,7 @@ export function renderElement(
   switch (tag) {
     case "Group":
     case "PartDraw":
-      renderGroup(ctx, el);
+      renderGroup(ctx, el, renderElement);
       break;
     case "Arc":
       renderArc(ctx, el);
