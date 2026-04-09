@@ -4,17 +4,48 @@
   "description": "Web preview renderer for WearOS Watch Face Format (WFF) v4 XML",
   "type": "module",
   "main": "dist/index.js",
+  "module": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts",
+    "prepublishOnly": "pnpm build",
     "test": "vitest run",
     "test:visual": "vitest run --config vitest.visual.config.ts",
     "test:visual:update-baselines": "tsx scripts/update-baselines.ts",
     "report": "tsx scripts/generate-report.ts"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "wearos",
+    "watch-face",
+    "wff",
+    "watch-face-format",
+    "canvas",
+    "renderer",
+    "preview"
+  ],
+  "author": "Patrick Auld",
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/PatrickAuld/wff_web.git"
+  },
+  "bugs": {
+    "url": "https://github.com/PatrickAuld/wff_web/issues"
+  },
+  "homepage": "https://github.com/PatrickAuld/wff_web#readme",
+  "engines": {
+    "node": ">=18"
+  },
   "packageManager": "pnpm@10.31.0",
   "devDependencies": {
     "@playwright/test": "^1.58.2",
