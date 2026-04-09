@@ -1,0 +1,13 @@
+{
+  "name": "Shape Primitives",
+  "description": "Rectangles, ellipses, lines, arcs, and gradients laid out without container transforms to validate Phase 2 rendering fidelity.",
+  "scenarios": [
+    {
+      "name": "interactive-default",
+      "time": "2024-01-15T10:10:00",
+      "ambient": false,
+      "threshold": 0.08,
+      "maxDiffPixelPercent": 2.5
+    }
+  ]
+}

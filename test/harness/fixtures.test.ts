@@ -34,4 +34,18 @@ describe("fixture discovery", () => {
     const fixture = await loadFixture("/tmp/nonexistent-fixture-dir");
     expect(fixture).toBeNull();
   });
+
+  it("loads the Phase 2 shape primitives fixture", async () => {
+    const fixtureDir = resolve(
+      import.meta.dirname,
+      "../fixtures/07-shape-primitives"
+    );
+    const fixture = await loadFixture(fixtureDir);
+
+    expect(fixture).not.toBeNull();
+    expect(fixture!.config.name).toBe("Shape Primitives");
+    expect(fixture!.config.scenarios[0].maxDiffPixelPercent).toBe(2.5);
+    expect(fixture!.xml).toContain("<SweepGradient");
+    expect(fixture!.xml).toContain('dashIntervals="24 18"');
+  });
 });

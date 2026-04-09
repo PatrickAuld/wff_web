@@ -9,6 +9,24 @@ import { renderAnalogClock } from "./clock.js";
 import { applyTransforms } from "./animation.js";
 import type { ExpressionContext } from "./expressions.js";
 
+/**
+ * Resolve [SOURCE_NAME] expression references in Fill/Stroke color attributes.
+ * Mutates the element's child Fill/Stroke attributes in place (safe within a
+ * single render pass, consistent with how applyVariants/applyTransforms work).
+ */
+function resolveColorExprs(el: Element, expressionCtx: ExpressionContext): void {
+  for (const child of el.children) {
+    if (child.tagName !== "Fill" && child.tagName !== "Stroke") continue;
+    const color = child.getAttribute("color");
+    if (!color?.includes("[")) continue;
+    const resolved = color.replace(/\[([^\]]+)\]/g, (_, name) => {
+      const val = expressionCtx.sources[name];
+      return val !== undefined ? String(val) : "#000000";
+    });
+    child.setAttribute("color", resolved);
+  }
+}
+
 export interface RenderContext {
   expressionCtx: ExpressionContext;
   ambient: boolean;
@@ -34,30 +52,35 @@ export async function renderElement(
     case "Arc":
       applyVariants(el, renderCtx.ambient);
       applyTransforms(el, renderCtx.expressionCtx, renderCtx.elapsedMs);
+      resolveColorExprs(el, renderCtx.expressionCtx);
       applyBlendMode(ctx, el);
       renderArc(ctx, el);
       break;
     case "Rectangle":
       applyVariants(el, renderCtx.ambient);
       applyTransforms(el, renderCtx.expressionCtx, renderCtx.elapsedMs);
+      resolveColorExprs(el, renderCtx.expressionCtx);
       applyBlendMode(ctx, el);
       renderRectangle(ctx, el);
       break;
     case "RoundRectangle":
       applyVariants(el, renderCtx.ambient);
       applyTransforms(el, renderCtx.expressionCtx, renderCtx.elapsedMs);
+      resolveColorExprs(el, renderCtx.expressionCtx);
       applyBlendMode(ctx, el);
       renderRoundRectangle(ctx, el);
       break;
     case "Ellipse":
       applyVariants(el, renderCtx.ambient);
       applyTransforms(el, renderCtx.expressionCtx, renderCtx.elapsedMs);
+      resolveColorExprs(el, renderCtx.expressionCtx);
       applyBlendMode(ctx, el);
       renderEllipse(ctx, el);
       break;
     case "Line":
       applyVariants(el, renderCtx.ambient);
       applyTransforms(el, renderCtx.expressionCtx, renderCtx.elapsedMs);
+      resolveColorExprs(el, renderCtx.expressionCtx);
       applyBlendMode(ctx, el);
       renderLine(ctx, el);
       break;

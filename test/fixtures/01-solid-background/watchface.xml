@@ -1,4 +1,4 @@
-<WatchFace width="450" height="450">
+<WatchFace width="450" height="450" clipShape="CIRCLE">
   <Metadata key="CLOCK_TYPE" value="DIGITAL"/>
   <Metadata key="PREVIEW_TIME" value="10:10:00"/>
   <Scene>

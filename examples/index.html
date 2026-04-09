@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WFF Web Renderer — WearOS Samples</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: #0f0f0f;
+      color: #e0e0e0;
+      padding: 32px;
+    }
+    h1 { font-size: 28px; margin-bottom: 4px; }
+    .subtitle { color: #888; margin-bottom: 8px; font-size: 14px; }
+    .source-link { color: #4e90e8; font-size: 12px; margin-bottom: 32px; display: block; }
+    .source-link a { color: inherit; }
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 32px;
+      padding: 16px;
+      background: #1a1a1a;
+      border-radius: 8px;
+      flex-wrap: wrap;
+    }
+    .controls label { font-size: 13px; color: #aaa; }
+    .controls input[type="time"],
+    .controls input[type="date"] {
+      background: #2a2a2a;
+      border: 1px solid #444;
+      border-radius: 4px;
+      color: #e0e0e0;
+      padding: 6px 10px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+    .controls button {
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 7px 14px;
+      font-size: 13px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .controls button:hover { background: #1d4ed8; }
+    .controls button.active { background: #16a34a; }
+    .controls .spacer { flex: 1; }
+    .examples {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 32px;
+    }
+    .example {
+      background: #1a1a1a;
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .example h2 {
+      font-size: 16px;
+      margin-bottom: 4px;
+      align-self: flex-start;
+    }
+    .example p {
+      font-size: 12px;
+      color: #888;
+      margin-bottom: 16px;
+      align-self: flex-start;
+      line-height: 1.5;
+    }
+    .example canvas {
+      border-radius: 50%;
+      box-shadow: 0 0 0 2px #333, 0 4px 24px rgba(0,0,0,0.5);
+      /* Scale down from 450×450 native to 300×300 display */
+      width: 300px;
+      height: 300px;
+    }
+  </style>
+</head>
+<body>
+  <h1>WFF Web Renderer</h1>
+  <p class="subtitle">WearOS Watch Face Format v4 — official samples rendered to HTML Canvas</p>
+  <span class="source-link"><a href="https://github.com/android/wear-os-samples/tree/main/WatchFaceFormat" target="_blank">android/wear-os-samples/WatchFaceFormat</a></span>
+
+  <div class="controls">
+    <label>Date
+      <input type="date" id="date-input">
+    </label>
+    <label>Time
+      <input type="time" id="time-input" step="1">
+    </label>
+    <button id="now-btn">Use Current Time</button>
+    <div class="spacer"></div>
+    <button id="live-btn">Live</button>
+  </div>
+
+  <div class="examples">
+    <div class="example">
+      <h2>SimpleAnalog</h2>
+      <p>Analog clock with colored theme configuration, background annulus, shadow hands, and ambient mode. Hand images are device assets.</p>
+      <canvas id="canvas-simple-analog"></canvas>
+    </div>
+    <div class="example">
+      <h2>SimpleDigital</h2>
+      <p>Digital clock with SYNC_TO_DEVICE font, ambient mode weight variant, and localized greeting string.</p>
+      <canvas id="canvas-simple-digital"></canvas>
+    </div>
+    <div class="example">
+      <h2>Flavors</h2>
+      <p>Digital clock with three user-selectable Flavors combining color theme, clock appearance, and heart rate display.</p>
+      <canvas id="canvas-flavors"></canvas>
+    </div>
+    <div class="example">
+      <h2>Weather</h2>
+      <p>Digital clock with live weather data: current conditions, hourly forecast icons, and daily forecast. Falls back gracefully when weather is unavailable.</p>
+      <canvas id="canvas-weather"></canvas>
+    </div>
+    <div class="example">
+      <h2>PhotosMask</h2>
+      <p>Digital clock with user photo displayed through a rounded hexagon mask (SINGLE photo configuration).</p>
+      <canvas id="canvas-photos-mask"></canvas>
+    </div>
+    <div class="example">
+      <h2>PhotosMulti</h2>
+      <p>Digital clock with cycling user photo gallery (MULTIPLE photo configuration, changes on tap or after every 3 views).</p>
+      <canvas id="canvas-photos-multi"></canvas>
+    </div>
+  </div>
+
+  <script type="module">
+    // Load library and expose globally
+    const libSrc = await fetch('../dist/index.js').then(r => r.text());
+    const blob = new Blob(
+      [libSrc.replace(/export\s*\{[^}]*\}/, '') + '\nwindow.renderWatchFace = renderWatchFace;'],
+      { type: 'application/javascript' }
+    );
+    const scriptEl = document.createElement('script');
+    scriptEl.src = URL.createObjectURL(blob);
+    document.head.appendChild(scriptEl);
+    await new Promise(r => scriptEl.onload = r);
+
+    // -----------------------------------------------------------------------
+    // Official WearOS sample XMLs
+    // Source: https://github.com/android/wear-os-samples/tree/main/WatchFaceFormat
+    // -----------------------------------------------------------------------
+
+    const SIMPLE_ANALOG_XML = `<?xml version="1.0"?>
+<WatchFace width="450" height="450">
+  <Metadata key="CLOCK_TYPE" value="ANALOG" />
+  <Metadata key="PREVIEW_TIME" value="10:08:32" />
+  <UserConfigurations>
+    <ColorConfiguration id="themeColor" displayName="color_label" defaultValue="0">
+      <ColorOption id="0" displayName="color_theme_0" colors="#ffbe0b #fb5607 #ff006e #8338ec #883c3c3c" />
+      <ColorOption id="1" displayName="color_theme_1" colors="#8ecae6 #219ebc #ffb703 #fb8500 #883c3c3c" />
+      <ColorOption id="2" displayName="color_theme_2" colors="#ff595e #ffca3a #8ac926 #1982c4 #883c3c3c" />
+      <ColorOption id="3" displayName="color_theme_3" colors="#ff0000 #00ff00 #ff00ff #00ffff #883c3c3c" />
+      <ColorOption id="4" displayName="color_theme_4" colors="#ff99c8 #fcf6bd #d0f4de #a9def9 #883c3c3c" />
+      <ColorOption id="5" displayName="color_theme_5" colors="#1be7ff #6eeb83 #e4ff1a #ffb800 #883c3c3c" />
+    </ColorConfiguration>
+  </UserConfigurations>
+  <Scene backgroundColor="#000000">
+    <Group x="100" y="100" width="250" height="250" name="background" alpha="127">
+      <Variant mode="AMBIENT" target="alpha" value="0" />
+      <PartDraw x="0" y="0" width="250" height="250">
+        <Ellipse x="0" y="0" width="250" height="250">
+          <Fill color="[CONFIGURATION.themeColor.3]" />
+        </Ellipse>
+        <Ellipse x="50" y="50" width="150" height="150">
+          <Fill color="#000000" />
+        </Ellipse>
+      </PartDraw>
+    </Group>
+    <AnalogClock x="0" y="0" width="450" height="450">
+      <Variant mode="AMBIENT" target="alpha" value="192" />
+      <HourHand resource="hour" x="220" y="55" width="20" height="190" pivotX="0.5"
+        pivotY="0.92105263157" tintColor="[CONFIGURATION.themeColor.4]">
+        <Variant mode="AMBIENT" target="alpha" value="0" />
+      </HourHand>
+      <MinuteHand resource="minute" x="222" y="30" width="16" height="220" pivotX="0.5" pivotY="0.9"
+        tintColor="[CONFIGURATION.themeColor.4]">
+        <Variant mode="AMBIENT" target="alpha" value="0" />
+      </MinuteHand>
+      <SecondHand resource="second" x="226" y="20" width="8" height="245" pivotX="0.5"
+        pivotY="0.85714285714" tintColor="[CONFIGURATION.themeColor.4]">
+        <Variant mode="AMBIENT" target="alpha" value="0" />
+        <Sweep frequency="15" />
+      </SecondHand>
+      <HourHand resource="hour" x="215" y="50" width="20" height="190" pivotX="0.5"
+        pivotY="0.92105263157" tintColor="[CONFIGURATION.themeColor.0]">
+      </HourHand>
+      <MinuteHand resource="minute" x="217" y="25" width="16" height="220" pivotX="0.5" pivotY="0.9"
+        tintColor="[CONFIGURATION.themeColor.1]">
+      </MinuteHand>
+      <SecondHand resource="second" x="221" y="15" width="8" height="245" pivotX="0.5"
+        pivotY="0.85714285714" tintColor="[CONFIGURATION.themeColor.2]">
+        <Variant mode="AMBIENT" target="alpha" value="0" />
+        <Sweep frequency="15" />
+      </SecondHand>
+    </AnalogClock>
+    <PartDraw x="222" y="222" width="6" height="6">
+      <Ellipse x="0" y="0" width="6" height="6">
+        <Fill color="#000000" />
+      </Ellipse>
+    </PartDraw>
+  </Scene>
+</WatchFace>`;
+
+    const SIMPLE_DIGITAL_XML = `<?xml version="1.0"?>
+<WatchFace width="450" height="450">
+  <Metadata key="CLOCK_TYPE" value="DIGITAL"/>
+  <Metadata key="PREVIEW_TIME" value="10:08:32"/>
+  <Scene backgroundColor="#ff000000">
+    <DigitalClock x="0" y="0" width="450" height="450">
+      <TimeText format="hh:mm" hourFormat="SYNC_TO_DEVICE" align="CENTER" x="0" y="175" width="450" height="100" alpha="255">
+        <Variant mode="AMBIENT" target="alpha" value="0"/>
+        <Font family="SYNC_TO_DEVICE" size="128" weight="NORMAL" slant="NORMAL" color="#ffffffff"/>
+      </TimeText>
+      <TimeText format="hh:mm" hourFormat="SYNC_TO_DEVICE" align="CENTER" x="0" y="175" width="450" height="100" alpha="0">
+        <Variant mode="AMBIENT" target="alpha" value="255"/>
+        <Font family="SYNC_TO_DEVICE" size="128" weight="THIN" slant="NORMAL" color="#ffffffff"/>
+      </TimeText>
+    </DigitalClock>
+    <Group x="0" y="0" width="450" height="450" name="hello_world">
+      <PartText x="0" y="285" width="450" height="50">
+        <Variant mode="AMBIENT" target="alpha" value="0"/>
+        <Text align="CENTER">
+          <Font family="SYNC_TO_DEVICE" size="36" color="#ffffffff">
+            <Template>%s<Parameter expression="greeting"></Parameter></Template>
+          </Font>
+        </Text>
+      </PartText>
+    </Group>
+  </Scene>
+</WatchFace>`;
+
+    const FLAVORS_XML = `<?xml version="1.0"?>
+<WatchFace width="450" height="450">
+  <Metadata key="CLOCK_TYPE" value="DIGITAL"/>
+  <Metadata key="PREVIEW_TIME" value="10:08:32"/>
+  <UserConfigurations>
+    <ColorConfiguration id="themeColor" defaultValue="0" displayName="theme_color_label">
+      <ColorOption displayName="theme_color_zero_label" id="0" colors="#FFFFFF #CCCCCC #999999" />
+      <ColorOption displayName="theme_color_one_label" id="1" colors="#ABD2FA #B0FE76 #7692FF" />
+      <ColorOption displayName="theme_color_two_label" id="2" colors="#D65780 #EE9480 #EFD2CB" />
+    </ColorConfiguration>
+    <ListConfiguration id="clockAppearance" displayName="clock_appearance_label" defaultValue="0">
+      <ListOption id="0" displayName="clock_appearance_zero_label" />
+      <ListOption id="1" displayName="clock_appearance_one_label" />
+      <ListOption id="2" displayName="clock_appearance_two_label" />
+    </ListConfiguration>
+    <BooleanConfiguration id="showHr" displayName="show_hr_label" defaultValue="TRUE" />
+    <Flavors defaultValue="flavorZero">
+      <Flavor id="flavorZero" displayName="flavor_zero_label">
+        <Configuration id="themeColor" optionId="0"/>
+        <Configuration id="clockAppearance" optionId="0"/>
+        <Configuration id="showHr" optionId="FALSE"/>
+      </Flavor>
+      <Flavor id="flavorOne" displayName="flavor_one_label">
+        <Configuration id="themeColor" optionId="1"/>
+        <Configuration id="clockAppearance" optionId="1"/>
+        <Configuration id="showHr" optionId="FALSE"/>
+      </Flavor>
+      <Flavor id="flavorTwo" displayName="flavor_two_label">
+        <Configuration id="themeColor" optionId="2"/>
+        <Configuration id="clockAppearance" optionId="2"/>
+        <Configuration id="showHr" optionId="TRUE"/>
+      </Flavor>
+    </Flavors>
+  </UserConfigurations>
+  <Scene backgroundColor="#ff000000">
+    <ListConfiguration id="clockAppearance">
+      <ListOption id="0">
+        <DigitalClock x="0" y="168" width="450" height="100">
+          <TimeText x="0" y="0" width="450" height="100" format="h:mm" hourFormat="SYNC_TO_DEVICE" align="CENTER">
+            <Font family="SYNC_TO_DEVICE" size="96" weight="THIN" color="[CONFIGURATION.themeColor.0]"/>
+          </TimeText>
+        </DigitalClock>
+      </ListOption>
+      <ListOption id="1">
+        <DigitalClock x="0" y="168" width="450" height="100">
+          <TimeText x="0" y="0" width="450" height="100" format="h:mm" hourFormat="SYNC_TO_DEVICE" align="CENTER">
+            <Font family="SYNC_TO_DEVICE" size="104" weight="NORMAL" color="[CONFIGURATION.themeColor.0]"/>
+          </TimeText>
+        </DigitalClock>
+      </ListOption>
+      <ListOption id="2">
+        <DigitalClock x="0" y="168" width="450" height="100">
+          <TimeText x="0" y="0" width="450" height="100" format="h:mm" hourFormat="SYNC_TO_DEVICE" align="CENTER">
+            <Font family="SYNC_TO_DEVICE" size="116" weight="EXTRA_BOLD" color="[CONFIGURATION.themeColor.0]"/>
+          </TimeText>
+        </DigitalClock>
+      </ListOption>
+    </ListConfiguration>
+    <BooleanConfiguration id="showHr">
+      <BooleanOption id="TRUE">
+        <PartText x="150" y="72" width="150" height="80" alpha="255">
+          <Variant mode="AMBIENT" target="alpha" value="0" />
+          <Text align="CENTER" ellipsis="TRUE">
+            <Font family="SYNC_TO_DEVICE" size="48" slant="NORMAL" color="#000000">
+              <Outline color="[CONFIGURATION.themeColor.1]" width="4">
+                <Template>&#x2665; %s<Parameter expression="[HEART_RATE] != null ? [HEART_RATE] : &quot;--&quot;"/>
+                </Template>
+              </Outline>
+            </Font>
+          </Text>
+        </PartText>
+      </BooleanOption>
+    </BooleanConfiguration>
+  </Scene>
+</WatchFace>`;
+
+    const WEATHER_XML = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<WatchFace height="450" width="450">
+  <Scene>
+    <Group height="450" name="Root" width="450" x="0" y="0">
+      <PartDraw height="450" name="BackgroundContour" width="450" x="0" y="0">
+        <Ellipse height="450.0" width="450.0" x="0.0" y="0.0">
+          <Stroke color="#ff888888" thickness="10.0"/>
+          <Fill color="#ff0c0c0c"/>
+        </Ellipse>
+      </PartDraw>
+      <Group height="430" name="BackgroundWrapper" width="430" x="10" y="10">
+        <Group height="27" width="100" x="175" y="30">
+          <PartText height="27" width="100" x="0" y="0">
+            <Localization calendar="GREGORIAN" timeZone="SYNC_TO_DEVICE"/>
+            <Text>
+              <Font family="SYNC_TO_DEVICE" size="27">
+                <Template><![CDATA[%s %s]]>
+                  <Parameter expression="[DAY_OF_WEEK_S]"/>
+                  <Parameter expression="[DAY_Z]"/>
+                </Template>
+              </Font>
+            </Text>
+          </PartText>
+        </Group>
+        <DigitalClock height="140" width="270" x="90" y="45">
+          <Localization calendar="GREGORIAN" timeZone="SYNC_TO_DEVICE"/>
+          <TimeText format="hh" height="140" width="180" x="0" y="0">
+            <Font family="SYNC_TO_DEVICE" size="140"/>
+          </TimeText>
+          <TimeText format="mm" height="75" width="85" x="185" y="7">
+            <Font family="SYNC_TO_DEVICE" size="75"/>
+          </TimeText>
+        </DigitalClock>
+        <Group height="140" name="Seconds_And_Separator" width="270" x="90" y="45">
+          <Variant mode="AMBIENT" target="alpha" value="0"/>
+          <PartText height="75" width="100" x="185" y="70">
+            <Localization calendar="GREGORIAN" timeZone="SYNC_TO_DEVICE"/>
+            <Text>
+              <Font family="SYNC_TO_DEVICE" size="27">
+                <Template><![CDATA[%s]]>
+                  <Parameter expression="[SECOND_Z]"/>
+                </Template>
+              </Font>
+            </Text>
+          </PartText>
+        </Group>
+        <Group height="255" name="Weather_Condition" width="410" x="10" y="175">
+          <Condition>
+            <Expressions>
+              <Expression name="is_weather_available">[WEATHER.IS_AVAILABLE]</Expression>
+            </Expressions>
+            <Compare expression="is_weather_available">
+              <Group height="47" name="CurrentTemp" width="137" x="273" y="0">
+                <PartDraw height="47" width="137" x="0" y="0">
+                  <RoundRectangle cornerRadiusX="23.5" cornerRadiusY="23.5" height="47.0" width="137.0" x="0.0" y="0.0">
+                    <Fill color="#ff888888"/>
+                  </RoundRectangle>
+                </PartDraw>
+                <PartText height="37" width="127" x="5" y="5">
+                  <Text>
+                    <Font family="SYNC_TO_DEVICE" size="31">
+                      <Template><![CDATA[%s°]]>
+                        <Parameter expression="[WEATHER.TEMPERATURE]"/>
+                      </Template>
+                    </Font>
+                  </Text>
+                </PartText>
+              </Group>
+            </Compare>
+            <Default>
+              <Group height="255" name="Not_Available_Wrapper" width="410" x="0" y="0">
+                <PartText height="255" width="410" x="0" y="0">
+                  <Text>
+                    <Font family="SYNC_TO_DEVICE" size="30">Weather data is not available</Font>
+                  </Text>
+                </PartText>
+              </Group>
+            </Default>
+          </Condition>
+        </Group>
+      </Group>
+    </Group>
+  </Scene>
+</WatchFace>`;
+
+    const PHOTOS_MASK_XML = `<?xml version="1.0"?>
+<WatchFace width="450" height="450">
+  <Metadata key="CLOCK_TYPE" value="DIGITAL"/>
+  <Metadata key="PREVIEW_TIME" value="10:08:32"/>
+  <UserConfigurations>
+    <PhotosConfiguration id="photoConfig" configType="SINGLE"/>
+  </UserConfigurations>
+  <Scene backgroundColor="#ff000000">
+    <Variant mode="AMBIENT" target="backgroundColor" value="#ff222222"/>
+    <Group x="0" y="0" width="450" height="450" angle="0" name="photo_container"
+        pivotX="0.5" pivotY="0.5" alpha="255">
+      <PartImage x="99" y="100" width="250" height="250" angle="0"
+          pivotX="0.5" pivotY="0.5" alpha="255" renderMode="MASK">
+        <Image resource="rounded_hexagon"/>
+      </PartImage>
+      <PartImage x="99" y="100" width="250" height="250" angle="0"
+          pivotX="0.5" pivotY="0.5" alpha="255">
+        <Photos change="TAP" source="[CONFIGURATION.photoConfig]"
+            defaultImageResource="default_image"/>
+      </PartImage>
+    </Group>
+    <PartText x="125" y="24" width="200" height="75" angle="0" pivotX="0.5"
+        pivotY="0.5" alpha="255">
+      <Localization calendar="GREGORIAN" />
+      <Text align="CENTER" ellipsis="FALSE">
+        <Font family="SYNC_TO_DEVICE" size="40" weight="NORMAL" slant="NORMAL"
+            color="#ffffffff">
+          <Template>%s:%s %s<Parameter expression="[HOUR_1_12]" />
+            <Parameter expression="[MINUTE_Z]" />
+            <Parameter expression="[AMPM_STRING]" />
+          </Template>
+        </Font>
+      </Text>
+    </PartText>
+  </Scene>
+</WatchFace>`;
+
+    const PHOTOS_MULTI_XML = `<?xml version="1.0"?>
+<WatchFace width="450" height="450">
+  <Metadata key="CLOCK_TYPE" value="DIGITAL"/>
+  <Metadata key="PREVIEW_TIME" value="10:08:32"/>
+  <UserConfigurations>
+    <PhotosConfiguration id="photoConfig" configType="MULTIPLE"/>
+  </UserConfigurations>
+  <Scene backgroundColor="#ff000000">
+    <Variant mode="AMBIENT" target="backgroundColor" value="#ff222222"/>
+    <Group x="0" y="0" width="450" height="450" angle="0"
+        pivotX="0.5" pivotY="0.5" alpha="255" name="photos_container">
+      <PartDraw x="98" y="99" width="255" height="255" angle="0"
+          pivotX="0.5" pivotY="0.5" alpha="255">
+        <Rectangle x="0" y="0" width="255" height="255">
+          <Stroke color="#ffffffff" thickness="2.0" />
+        </Rectangle>
+      </PartDraw>
+      <PartImage x="99" y="100" width="250" height="250" angle="0"
+          pivotX="0.5" pivotY="0.5" alpha="255">
+        <Photos change="ON_VISIBLE TAP" changeAfterEvery="3" source="[CONFIGURATION.photoConfig]"
+            defaultImageResource="default_image"/>
+      </PartImage>
+    </Group>
+    <PartText x="125" y="24" width="200" height="75" angle="0" pivotX="0.5"
+        pivotY="0.5" alpha="255">
+      <Localization calendar="GREGORIAN" />
+      <Text align="CENTER" ellipsis="FALSE">
+        <Font family="SYNC_TO_DEVICE" size="40" weight="NORMAL" slant="NORMAL"
+            color="#ffffffff">
+          <Template>%s:%s %s<Parameter expression="[HOUR_1_12]" />
+            <Parameter expression="[MINUTE_Z]" />
+            <Parameter expression="[AMPM_STRING]" />
+          </Template>
+        </Font>
+      </Text>
+    </PartText>
+  </Scene>
+</WatchFace>`;
+
+    // -----------------------------------------------------------------------
+    // Assets
+    // -----------------------------------------------------------------------
+
+    async function loadAssets(basePath, names) {
+      const map = new Map();
+      await Promise.all(names.map(async name => {
+        const buf = await fetch(`${basePath}/${name}.png`).then(r => r.arrayBuffer());
+        map.set(name, buf);
+      }));
+      return map;
+    }
+
+    const simpleAnalogAssets = await loadAssets('assets/simple-analog', ['hour', 'minute', 'second']);
+
+    // -----------------------------------------------------------------------
+    // Rendering logic
+    // -----------------------------------------------------------------------
+
+    const faces = [
+      { canvas: document.getElementById('canvas-simple-analog'), xml: SIMPLE_ANALOG_XML, assets: simpleAnalogAssets },
+      { canvas: document.getElementById('canvas-simple-digital'), xml: SIMPLE_DIGITAL_XML },
+      { canvas: document.getElementById('canvas-flavors'), xml: FLAVORS_XML },
+      { canvas: document.getElementById('canvas-weather'), xml: WEATHER_XML },
+      { canvas: document.getElementById('canvas-photos-mask'), xml: PHOTOS_MASK_XML },
+      { canvas: document.getElementById('canvas-photos-multi'), xml: PHOTOS_MULTI_XML },
+    ];
+
+    const dateInput = document.getElementById('date-input');
+    const timeInput = document.getElementById('time-input');
+    const nowBtn = document.getElementById('now-btn');
+    const liveBtn = document.getElementById('live-btn');
+
+    let live = true;
+    let liveTimer = null;
+
+    function getSelectedTime() {
+      const d = dateInput.value || new Date().toISOString().slice(0, 10);
+      const t = timeInput.value || '00:00:00';
+      return new Date(`${d}T${t}`);
+    }
+
+    function setInputsToNow() {
+      const now = new Date();
+      dateInput.value = now.toISOString().slice(0, 10);
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mm = String(now.getMinutes()).padStart(2, '0');
+      const ss = String(now.getSeconds()).padStart(2, '0');
+      timeInput.value = `${hh}:${mm}:${ss}`;
+    }
+
+    async function renderAll(time) {
+      for (const { canvas, xml, assets } of faces) {
+        await window.renderWatchFace(canvas, { xml, time, assets });
+      }
+    }
+
+    function startLive() {
+      live = true;
+      liveBtn.classList.add('active');
+      tick();
+    }
+
+    function stopLive() {
+      live = false;
+      liveBtn.classList.remove('active');
+      if (liveTimer) {
+        cancelAnimationFrame(liveTimer);
+        liveTimer = null;
+      }
+    }
+
+    async function tick() {
+      if (!live) return;
+      const now = new Date();
+      setInputsToNow();
+      await renderAll(now);
+      liveTimer = requestAnimationFrame(tick);
+    }
+
+    nowBtn.addEventListener('click', () => {
+      setInputsToNow();
+      if (!live) renderAll(getSelectedTime());
+      startLive();
+    });
+
+    liveBtn.addEventListener('click', () => {
+      if (live) stopLive();
+      else startLive();
+    });
+
+    dateInput.addEventListener('input', () => {
+      stopLive();
+      renderAll(getSelectedTime());
+    });
+
+    timeInput.addEventListener('input', () => {
+      stopLive();
+      renderAll(getSelectedTime());
+    });
+
+    setInputsToNow();
+    startLive();
+  </script>
+</body>
+</html>

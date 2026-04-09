@@ -1,0 +1,53 @@
+<WatchFace width="450" height="450">
+  <Metadata key="CLOCK_TYPE" value="DIGITAL"/>
+  <Metadata key="PREVIEW_TIME" value="10:10:00"/>
+  <Scene backgroundColor="#101820">
+    <Rectangle x="24" y="24" width="160" height="120">
+      <Fill>
+        <LinearGradient startX="24" startY="24" endX="184" endY="144"
+                        colors="#FF5B99 #FFD166 #06D6A0"
+                        positions="0 0.55 1"/>
+      </Fill>
+      <Stroke color="#FFF4E6" thickness="6"/>
+    </Rectangle>
+
+    <RoundRectangle x="214" y="24" width="212" height="112"
+                    cornerRadiusX="28" cornerRadiusY="28">
+      <Fill color="#221F33"/>
+      <Stroke color="#F4F1DE" thickness="8" dashIntervals="18 10" dashPhase="9"/>
+    </RoundRectangle>
+
+    <Ellipse x="24" y="176" width="160" height="116">
+      <Fill>
+        <RadialGradient centerX="104" centerY="234" radius="80"
+                        colors="#FFFFFFFF #80C9F9FF #003A86FF"
+                        positions="0 0.55 1"/>
+      </Fill>
+      <Stroke color="#FFE66D" thickness="4"/>
+    </Ellipse>
+
+    <Arc centerX="320" centerY="234" width="168" height="168"
+         startAngle="300" endAngle="120" direction="CLOCKWISE">
+      <Stroke color="#FF6B6B" thickness="24" cap="ROUND"/>
+    </Arc>
+
+    <Arc centerX="320" centerY="234" width="104" height="104"
+         startAngle="45" endAngle="315" direction="CLOCKWISE">
+      <Fill>
+        <SweepGradient centerX="320" centerY="234"
+                       startAngle="45" endAngle="315"
+                       colors="#FF006E #FB5607 #FFBE0B #3A86FF"
+                       positions="0 0.33 0.66 1"/>
+      </Fill>
+    </Arc>
+
+    <Line startX="36" startY="360" endX="414" endY="360">
+      <Stroke color="#F1FAEE" thickness="14" cap="ROUND" dashIntervals="24 18"/>
+    </Line>
+
+    <Rectangle x="170" y="320" width="110" height="80">
+      <Fill color="#80FFFFFF"/>
+      <Stroke color="#0D1B2A" thickness="4"/>
+    </Rectangle>
+  </Scene>
+</WatchFace>

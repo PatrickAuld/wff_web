@@ -13,5 +13,9 @@ apk-template/local.properties
 # Worktrees
 .worktrees/
 
+# Claude Code / Superpowers local config
+.claude/
+.superpowers/
+
 # OS
 .DS_Store

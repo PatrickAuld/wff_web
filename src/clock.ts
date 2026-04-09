@@ -1,6 +1,8 @@
 import { applyVariants } from "./variants.js";
+import { parseColor } from "./color.js";
 import { getOrDecodeImage } from "./images.js";
 import type { RenderContext } from "./shapes.js";
+import type { ExpressionContext } from "./expressions.js";
 
 export async function renderAnalogClock(
   ctx: CanvasRenderingContext2D,
@@ -9,8 +11,11 @@ export async function renderAnalogClock(
   renderCtx: RenderContext
 ): Promise<void> {
   applyVariants(el, renderCtx.ambient);
+
   const x = parseFloat(el.getAttribute("x") ?? "0");
   const y = parseFloat(el.getAttribute("y") ?? "0");
+  const alpha = parseFloat(el.getAttribute("alpha") ?? "255");
+  if (alpha <= 0) return;
 
   // Get current time from expression context
   const sources = renderCtx.expressionCtx.sources;
@@ -20,6 +25,7 @@ export async function renderAnalogClock(
 
   ctx.save();
   ctx.translate(x, y);
+  ctx.globalAlpha *= alpha / 255;
 
   for (const child of el.children) {
     const tag = child.tagName;
@@ -41,6 +47,42 @@ export async function renderAnalogClock(
   ctx.restore();
 }
 
+/** Resolve a single [SOURCE_NAME] expression ref in an attribute value. */
+function resolveExprRef(value: string | null, expressionCtx: ExpressionContext): string | null {
+  if (!value?.includes("[")) return value;
+  return value.replace(/\[([^\]]+)\]/g, (_, name) => {
+    const val = expressionCtx.sources[name];
+    return val !== undefined ? String(val) : "#000000";
+  });
+}
+
+/**
+ * Draw an ImageBitmap with an optional tintColor applied.
+ * tintColor replaces the non-transparent pixels' RGB while preserving
+ * the image's alpha channel — consistent with Android's tinting behavior.
+ */
+async function drawTintedImage(
+  ctx: CanvasRenderingContext2D,
+  bitmap: ImageBitmap,
+  w: number,
+  h: number,
+  tintColor: string | null
+): Promise<void> {
+  if (!tintColor) {
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    return;
+  }
+
+  // Composite the tint color over the image's alpha mask on an offscreen canvas
+  const offscreen = new OffscreenCanvas(w, h);
+  const offCtx = offscreen.getContext("2d")!;
+  offCtx.drawImage(bitmap, 0, 0, w, h);
+  offCtx.globalCompositeOperation = "source-in";
+  offCtx.fillStyle = parseColor(tintColor);
+  offCtx.fillRect(0, 0, w, h);
+  ctx.drawImage(offscreen, 0, 0);
+}
+
 async function renderHand(
   ctx: CanvasRenderingContext2D,
   el: Element,
@@ -50,6 +92,9 @@ async function renderHand(
 ): Promise<void> {
   applyVariants(el, renderCtx.ambient);
 
+  const alpha = parseFloat(el.getAttribute("alpha") ?? "255");
+  if (alpha <= 0) return; // Skip fully transparent hands (e.g. shadow hands in ambient)
+
   const x = parseFloat(el.getAttribute("x") ?? "0");
   const y = parseFloat(el.getAttribute("y") ?? "0");
   const w = parseFloat(el.getAttribute("width") ?? "0");
@@ -57,10 +102,12 @@ async function renderHand(
   const pivotX = parseFloat(el.getAttribute("pivotX") ?? "0.5");
   const pivotY = parseFloat(el.getAttribute("pivotY") ?? "0.5");
 
-  ctx.save();
+  // Resolve tintColor expression ref (e.g. [CONFIGURATION.themeColor.0])
+  const tintColor = resolveExprRef(el.getAttribute("tintColor"), renderCtx.expressionCtx);
 
-  // Translate to hand position
+  ctx.save();
   ctx.translate(x, y);
+  ctx.globalAlpha *= alpha / 255;
 
   // Pivot-based rotation
   const px = pivotX * w;
@@ -69,12 +116,12 @@ async function renderHand(
   ctx.rotate((angle * Math.PI) / 180);
   ctx.translate(-px, -py);
 
-  // Draw resource image if specified
+  // Draw resource image with optional tint
   const resource = el.getAttribute("resource");
   if (resource) {
     const bitmap = await getOrDecodeImage(resource, renderCtx.assets);
     if (bitmap) {
-      ctx.drawImage(bitmap, 0, 0, w, h);
+      await drawTintedImage(ctx, bitmap, w, h, tintColor);
     }
   }
 

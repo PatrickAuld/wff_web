@@ -1,4 +1,5 @@
 import { parseColor } from "./color.js";
+import { applyVariants } from "./variants.js";
 import type { RenderContext } from "./shapes.js";
 import type { ExpressionContext } from "./expressions.js";
 
@@ -308,10 +309,23 @@ export function renderDigitalClock(
 function renderTimeText(
   ctx: CanvasRenderingContext2D,
   el: Element,
-  containerWidth: number,
-  containerHeight: number,
+  parentWidth: number,
+  parentHeight: number,
   renderCtx: RenderContext
 ): void {
+  // Apply Variant overrides before reading any attributes (e.g. alpha changes
+  // between interactive and ambient mode).
+  applyVariants(el, renderCtx.ambient);
+
+  const alpha = parseFloat(el.getAttribute("alpha") ?? "255");
+  if (alpha <= 0) return; // Skip invisible TimeText (e.g. ambient-only layer in interactive mode)
+
+  // TimeText's own position/size within the DigitalClock container
+  const x = parseFloat(el.getAttribute("x") ?? "0");
+  const y = parseFloat(el.getAttribute("y") ?? "0");
+  const w = parseFloat(el.getAttribute("width") ?? "0") || parentWidth;
+  const h = parseFloat(el.getAttribute("height") ?? "0") || parentHeight;
+
   const format = el.getAttribute("format") ?? "HH:mm";
   const hourFormat = el.getAttribute("hourFormat") ?? "24";
   const align = el.getAttribute("align") ?? "START";
@@ -333,6 +347,10 @@ function renderTimeText(
     spec.size = parseFloat(sizeAttr);
   }
 
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.globalAlpha *= alpha / 255;
+
   applyFont(ctx, spec);
   const textAlign = resolveTextAlign(align);
   ctx.textAlign = textAlign;
@@ -340,12 +358,14 @@ function renderTimeText(
 
   let textX: number;
   switch (textAlign) {
-    case "center": textX = containerWidth / 2; break;
-    case "right": textX = containerWidth; break;
+    case "center": textX = w / 2; break;
+    case "right": textX = w; break;
     default: textX = 0;
   }
-  const textY = containerHeight / 2;
+  const textY = h / 2;
 
   ctx.fillText(formattedText, textX, textY);
   drawDecorations(ctx, formattedText, textX, textY, spec, textAlign);
+
+  ctx.restore();
 }

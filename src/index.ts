@@ -2,6 +2,58 @@ import { renderElement } from "./shapes.js";
 import { buildDataSources } from "./expressions.js";
 import type { RenderContext } from "./shapes.js";
 
+/**
+ * Parse UserConfigurations from the WFF document and expand them into a flat
+ * config map that buildDataSources can inject as CONFIGURATION.* sources.
+ *
+ * ColorConfiguration: expands the selected option's space-separated colors
+ *   into CONFIGURATION.{id}.0, CONFIGURATION.{id}.1, … entries.
+ * ListConfiguration: adds CONFIGURATION.{id} = selectedOptionId string.
+ * BooleanConfiguration: adds CONFIGURATION.{id} = 1 (TRUE) or 0 (FALSE).
+ *
+ * The optional userConfig argument overrides the XML defaultValue for each id.
+ */
+function parseUserConfigurations(
+  doc: Document,
+  userConfig?: Record<string, string | number | boolean>
+): Record<string, string | number | boolean> {
+  const result: Record<string, string | number | boolean> = {};
+  const userConfEl = doc.querySelector("UserConfigurations");
+  if (!userConfEl) return result;
+
+  for (const child of userConfEl.children) {
+    const id = child.getAttribute("id");
+    if (!id) continue;
+
+    if (child.tagName === "ColorConfiguration") {
+      const defaultValue = child.getAttribute("defaultValue") ?? "0";
+      const selectedId = userConfig?.[id] !== undefined
+        ? String(userConfig[id])
+        : defaultValue;
+      for (const opt of child.querySelectorAll("ColorOption")) {
+        if (opt.getAttribute("id") === selectedId) {
+          const colors = (opt.getAttribute("colors") ?? "").split(/\s+/).filter(Boolean);
+          colors.forEach((color, i) => { result[`${id}.${i}`] = color; });
+          break;
+        }
+      }
+    } else if (child.tagName === "ListConfiguration") {
+      const defaultValue = child.getAttribute("defaultValue") ?? "0";
+      result[id] = userConfig?.[id] !== undefined
+        ? String(userConfig[id])
+        : defaultValue;
+    } else if (child.tagName === "BooleanConfiguration") {
+      const defaultValue = child.getAttribute("defaultValue") ?? "TRUE";
+      const val = userConfig?.[id] !== undefined
+        ? String(userConfig[id])
+        : defaultValue;
+      result[id] = val === "TRUE" ? 1 : 0;
+    }
+  }
+
+  return result;
+}
+
 export interface RenderOptions {
   xml: string;
   assets?: Map<string, ArrayBuffer>;
@@ -70,8 +122,11 @@ async function renderFrame(
   ctx.fillStyle = backgroundColor;
   ctx.fillRect(0, 0, width, height);
 
-  // Build expression context from current time and configuration
-  const expressionCtx = buildDataSources(time, options.configuration, true);
+  // Build expression context from current time and configuration.
+  // Merge XML-declared UserConfigurations defaults with any caller-provided overrides.
+  const parsedConfig = parseUserConfigurations(doc, options.configuration);
+  const mergedConfig = { ...parsedConfig, ...options.configuration };
+  const expressionCtx = buildDataSources(time, mergedConfig, true);
   const renderCtx: RenderContext = {
     expressionCtx,
     ambient: options.ambient ?? false,

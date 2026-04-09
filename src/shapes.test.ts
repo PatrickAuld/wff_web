@@ -393,5 +393,33 @@ describe("Phase 2 – Shapes & Styles", () => {
       expect(rightSide.g).toBeGreaterThan(100);
       await page.close();
     });
+
+    it("clamps a partial sweep gradient outside its end angle", async () => {
+      const page = await createPage();
+      const xml = `<WatchFace width="120" height="120">
+        <Scene backgroundColor="#000000">
+          <Rectangle x="0" y="0" width="120" height="120">
+            <Fill>
+              <SweepGradient centerX="60" centerY="60"
+                             startAngle="0" endAngle="180"
+                             colors="#FF0000 #0000FF"
+                             positions="0 1"/>
+            </Fill>
+          </Rectangle>
+        </Scene>
+      </WatchFace>`;
+      const top = await renderAndSample(page, xml, 60, 10);
+      expect(top.r).toBeGreaterThan(200);
+      expect(top.b).toBeLessThan(50);
+
+      const bottom = await renderAndSample(page, xml, 60, 110);
+      expect(bottom.b).toBeGreaterThan(200);
+      expect(bottom.r).toBeLessThan(50);
+
+      const left = await renderAndSample(page, xml, 10, 60);
+      expect(left.b).toBeGreaterThan(200);
+      expect(left.r).toBeLessThan(50);
+      await page.close();
+    });
   });
 });
