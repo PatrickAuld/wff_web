@@ -554,6 +554,7 @@ export function buildDataSources(
   config?: Record<string, string | number | boolean>,
   is24Hour?: boolean
 ): ExpressionContext {
+  const millisecond = time.getMilliseconds(); // 0-999
   const second = time.getSeconds(); // 0-59
   const minute = time.getMinutes(); // 0-59
   const hour0_23 = time.getHours(); // 0-23
@@ -568,47 +569,160 @@ export function buildDataSources(
   const year = time.getFullYear();
   const ampmState = hour0_23 >= 12 ? 1 : 0;
   const is24HourMode = is24Hour !== false ? 1 : 0;
-  const utcTimestamp = Math.floor(time.getTime() / 1000);
+  const utcTimestamp = time.getTime();
+  const secondsSinceEpoch = Math.floor(utcTimestamp / 1000);
+  const daysInMonth = new Date(year, time.getMonth() + 1, 0).getDate();
+
+  // Combined float sources
+  const secondMillisecond = second + millisecond / 1000; // 0.0–59.999
+  const minuteSecond = minute + second / 60; // 0.0–59.98̄
+  const hour0_11Minute = hour0_11 + minute / 60; // 0.0–11.98̄
+  const hour1_12Minute = hour1_12 + minute / 60; // 1.0–12.98̄
+  const hour0_23Minute = hour0_23 + minute / 60; // 0.0–23.98̄
+  const hour1_24Minute = hour1_24 + minute / 60; // 1.0–24.98̄
+  const secondsInDay = hour0_23 * 3600 + minute * 60 + second; // 0–86399
+  const day0_30 = day - 1; // 0-30
+  const dayHour = day + hour0_23 / 24; // 1.0–31.95̄
+  const day0_30Hour = day0_30 + hour0_23 / 24; // 0.0–30.95̄
+  const month0_11 = month - 1; // 0-11
+  const monthDay = month + day0_30 / daysInMonth; // 1.0–12.9x
+  const month0_11Day = month0_11 + day0_30 / daysInMonth; // 0.0–11.9x
+  const yearMonth = year + month0_11 / 12; // e.g. 2024.0–2024.91̄
+  const yearMonthDay = year + (month0_11 + day0_30 / daysInMonth) / 12;
+  const weekInMonth = Math.ceil(day / 7); // 0-5
+  const weekInYear = Math.ceil(dayOfYear / 7); // 1-53
+
+  // Day-of-week strings
+  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const dayNamesShort = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+  const monthNamesShort = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+  ];
+
+  // Timezone info
+  const tzOffsetMinutes = -time.getTimezoneOffset(); // JS gives negated offset
+  const tzOffsetHours = Math.trunc(tzOffsetMinutes / 60);
+  const tzOffsetRemMin = Math.abs(tzOffsetMinutes % 60);
+  const tzOffsetStr = `${tzOffsetHours >= 0 ? "+" : ""}${tzOffsetHours}${tzOffsetRemMin ? ":" + zeroPad(tzOffsetRemMin) : ""}`;
+  const tzName = Intl.DateTimeFormat(undefined, { timeZoneName: "long" }).formatToParts(time)
+    .find(p => p.type === "timeZoneName")?.value ?? "";
+  const tzAbb = Intl.DateTimeFormat(undefined, { timeZoneName: "short" }).formatToParts(time)
+    .find(p => p.type === "timeZoneName")?.value ?? "";
+  const tzId = Intl.DateTimeFormat().resolvedOptions().timeZone ?? "";
 
   const sources: Record<string, number | string> = {
-    SECOND: second,
-    MINUTE: minute,
-    HOUR_0_23: hour0_23,
-    HOUR_1_12: hour1_12,
-    HOUR_0_11: hour0_11,
-    HOUR_1_24: hour1_24,
-    DAY: day,
-    DAY_OF_WEEK: dayOfWeek,
-    DAY_OF_YEAR: dayOfYear,
-    MONTH: month,
-    YEAR: year,
-    AMPM_STATE: ampmState,
-    IS_24_HOUR_MODE: is24HourMode,
+    // Milliseconds
     UTC_TIMESTAMP: utcTimestamp,
+    MILLISECOND: millisecond,
 
-    // Zero-padded string variants
+    // Seconds
+    SECOND: second,
     SECOND_Z: zeroPad(second),
-    MINUTE_Z: zeroPad(minute),
-    HOUR_0_23_Z: zeroPad(hour0_23),
-    HOUR_1_12_Z: zeroPad(hour1_12),
-    HOUR_0_11_Z: zeroPad(hour0_11),
-    HOUR_1_24_Z: zeroPad(hour1_24),
-    DAY_Z: zeroPad(day),
-    MONTH_Z: zeroPad(month),
-
-    // Digit extraction
     SECOND_TENS_DIGIT: Math.floor(second / 10),
     SECOND_UNITS_DIGIT: second % 10,
+    SECOND_MILLISECOND: secondMillisecond,
+    SECONDS_IN_DAY: secondsInDay,
+    SECONDS_SINCE_EPOCH: secondsSinceEpoch,
+
+    // Minutes
+    MINUTE: minute,
+    MINUTE_Z: zeroPad(minute),
     MINUTE_TENS_DIGIT: Math.floor(minute / 10),
     MINUTE_UNITS_DIGIT: minute % 10,
+    MINUTE_SECOND: minuteSecond,
+    MINUTES_SINCE_EPOCH: Math.floor(secondsSinceEpoch / 60),
+
+    // Hours (12-hour 0-11)
+    HOUR_0_11: hour0_11,
+    HOUR_0_11_Z: zeroPad(hour0_11),
+    HOUR_0_11_MINUTE: hour0_11Minute,
+
+    // Hours (12-hour 1-12)
+    HOUR_1_12: hour1_12,
+    HOUR_1_12_Z: zeroPad(hour1_12),
+    HOUR_1_12_MINUTE: hour1_12Minute,
+
+    // Hours (24-hour 0-23)
+    HOUR_0_23: hour0_23,
+    HOUR_0_23_Z: zeroPad(hour0_23),
+    HOUR_0_23_MINUTE: hour0_23Minute,
     HOUR_0_23_TENS_DIGIT: Math.floor(hour0_23 / 10),
     HOUR_0_23_UNITS_DIGIT: hour0_23 % 10,
+
+    // Hours (24-hour 1-24)
+    HOUR_1_24: hour1_24,
+    HOUR_1_24_Z: zeroPad(hour1_24),
+    HOUR_1_24_MINUTE: hour1_24Minute,
+
+    // Hour digit extraction (depends on IS_24_HOUR_MODE)
+    HOUR_TENS_DIGIT: is24HourMode
+      ? Math.floor(hour0_23 / 10)
+      : Math.floor(hour1_12 / 10),
+    HOUR_UNITS_DIGIT: is24HourMode
+      ? hour0_23 % 10
+      : hour1_12 % 10,
+    HOURS_SINCE_EPOCH: Math.floor(secondsSinceEpoch / 3600),
+
+    // Hour digit extraction for specific formats
     HOUR_1_12_TENS_DIGIT: Math.floor(hour1_12 / 10),
     HOUR_1_12_UNITS_DIGIT: hour1_12 % 10,
     HOUR_0_11_TENS_DIGIT: Math.floor(hour0_11 / 10),
     HOUR_0_11_UNITS_DIGIT: hour0_11 % 10,
     HOUR_1_24_TENS_DIGIT: Math.floor(hour1_24 / 10),
     HOUR_1_24_UNITS_DIGIT: hour1_24 % 10,
+
+    // Days
+    DAY: day,
+    DAY_Z: zeroPad(day),
+    DAY_HOUR: dayHour,
+    DAY_0_30: day0_30,
+    DAY_0_30_HOUR: day0_30Hour,
+    DAY_OF_YEAR: dayOfYear,
+    DAY_OF_WEEK: dayOfWeek,
+    DAY_OF_WEEK_F: dayNames[time.getDay()],
+    DAY_OF_WEEK_S: dayNamesShort[time.getDay()],
+    FIRST_DAY_OF_WEEK: 1, // default to Sunday; no browser API for locale first day
+
+    // Months
+    MONTH: month,
+    MONTH_Z: zeroPad(month),
+    MONTH_F: monthNames[time.getMonth()],
+    MONTH_S: monthNamesShort[time.getMonth()],
+    DAYS_IN_MONTH: daysInMonth,
+    MONTH_DAY: monthDay,
+    MONTH_0_11: month0_11,
+    MONTH_0_11_DAY: month0_11Day,
+
+    // Years
+    YEAR: year,
+    YEAR_S: year % 100,
+    YEAR_MONTH: yearMonth,
+    YEAR_MONTH_DAY: yearMonthDay,
+
+    // Weeks
+    WEEK_IN_MONTH: weekInMonth,
+    WEEK_IN_YEAR: weekInYear,
+
+    // AM/PM and mode
+    AMPM_STATE: ampmState,
+    IS_24_HOUR_MODE: is24HourMode,
+
+    // Daylight saving time
+    IS_DAYLIGHT_SAVING_TIME: isDST(time) ? 1 : 0,
+
+    // Timezone
+    TIMEZONE: tzName,
+    TIMEZONE_ABB: tzAbb,
+    TIMEZONE_ID: tzId,
+    TIMEZONE_OFFSET: tzOffsetStr,
+    TIMEZONE_OFFSET_MINUTES: tzOffsetMinutes,
+    TIMEZONE_OFFSET_DST: tzOffsetStr, // JS Date already includes DST
+    TIMEZONE_OFFSET_MINUTES_DST: tzOffsetMinutes, // JS Date already includes DST
   };
 
   // Configuration sources
@@ -619,4 +733,11 @@ export function buildDataSources(
   }
 
   return { sources };
+}
+
+function isDST(date: Date): boolean {
+  const jan = new Date(date.getFullYear(), 0, 1).getTimezoneOffset();
+  const jul = new Date(date.getFullYear(), 6, 1).getTimezoneOffset();
+  const stdOffset = Math.max(jan, jul);
+  return date.getTimezoneOffset() < stdOffset;
 }

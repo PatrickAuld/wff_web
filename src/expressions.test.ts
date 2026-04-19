@@ -322,6 +322,190 @@ describe("buildDataSources", () => {
     const noon = new Date("2024-01-15T12:00:00");
     expect(buildDataSources(noon).sources.HOUR_1_12).toBe(12);
   });
+
+  // Millisecond and combined float sources
+  it("includes MILLISECOND", () => {
+    const t = new Date("2024-01-15T14:30:45.123");
+    expect(buildDataSources(t).sources.MILLISECOND).toBe(123);
+  });
+
+  it("includes SECOND_MILLISECOND", () => {
+    const t = new Date("2024-01-15T14:30:45.500");
+    expect(buildDataSources(t).sources.SECOND_MILLISECOND).toBe(45.5);
+  });
+
+  it("includes MINUTE_SECOND", () => {
+    const t = new Date("2024-01-15T14:30:45");
+    expect(buildDataSources(t).sources.MINUTE_SECOND).toBe(30.75);
+  });
+
+  it("includes SECONDS_IN_DAY", () => {
+    // 14*3600 + 30*60 + 45 = 52245
+    expect(buildDataSources(date).sources.SECONDS_IN_DAY).toBe(52245);
+  });
+
+  it("includes SECONDS_SINCE_EPOCH", () => {
+    const s = buildDataSources(date).sources.SECONDS_SINCE_EPOCH as number;
+    expect(typeof s).toBe("number");
+    expect(s).toBeGreaterThan(0);
+  });
+
+  it("includes MINUTES_SINCE_EPOCH", () => {
+    const m = buildDataSources(date).sources.MINUTES_SINCE_EPOCH as number;
+    expect(typeof m).toBe("number");
+    expect(m).toBeGreaterThan(0);
+  });
+
+  it("includes HOURS_SINCE_EPOCH", () => {
+    const h = buildDataSources(date).sources.HOURS_SINCE_EPOCH as number;
+    expect(typeof h).toBe("number");
+    expect(h).toBeGreaterThan(0);
+  });
+
+  // Hour combined float sources
+  it("includes HOUR_0_11_MINUTE", () => {
+    expect(buildDataSources(date).sources.HOUR_0_11_MINUTE).toBe(2.5); // 14%12=2, 30/60=0.5
+  });
+
+  it("includes HOUR_1_12_MINUTE", () => {
+    expect(buildDataSources(date).sources.HOUR_1_12_MINUTE).toBe(2.5);
+  });
+
+  it("includes HOUR_0_23_MINUTE", () => {
+    expect(buildDataSources(date).sources.HOUR_0_23_MINUTE).toBe(14.5);
+  });
+
+  it("includes HOUR_1_24_MINUTE", () => {
+    expect(buildDataSources(date).sources.HOUR_1_24_MINUTE).toBe(14.5);
+  });
+
+  // HOUR_TENS/UNITS_DIGIT depends on 24-hour mode
+  it("HOUR_TENS_DIGIT uses 24h in 24h mode", () => {
+    expect(buildDataSources(date).sources.HOUR_TENS_DIGIT).toBe(1); // 14 → tens=1
+  });
+
+  it("HOUR_UNITS_DIGIT uses 24h in 24h mode", () => {
+    expect(buildDataSources(date).sources.HOUR_UNITS_DIGIT).toBe(4); // 14 → units=4
+  });
+
+  it("HOUR_TENS_DIGIT uses 12h in 12h mode", () => {
+    expect(buildDataSources(date, {}, false).sources.HOUR_TENS_DIGIT).toBe(0); // 2 → tens=0
+  });
+
+  it("HOUR_UNITS_DIGIT uses 12h in 12h mode", () => {
+    expect(buildDataSources(date, {}, false).sources.HOUR_UNITS_DIGIT).toBe(2); // 2 → units=2
+  });
+
+  // Day sources
+  it("includes DAY_0_30", () => {
+    expect(buildDataSources(date).sources.DAY_0_30).toBe(14); // day 15 → 14
+  });
+
+  it("includes DAY_HOUR", () => {
+    const v = buildDataSources(date).sources.DAY_HOUR as number;
+    expect(v).toBeCloseTo(15 + 14 / 24, 5);
+  });
+
+  it("includes DAY_0_30_HOUR", () => {
+    const v = buildDataSources(date).sources.DAY_0_30_HOUR as number;
+    expect(v).toBeCloseTo(14 + 14 / 24, 5);
+  });
+
+  it("includes DAY_OF_WEEK_F", () => {
+    expect(buildDataSources(date).sources.DAY_OF_WEEK_F).toBe("Monday");
+  });
+
+  it("includes DAY_OF_WEEK_S", () => {
+    expect(buildDataSources(date).sources.DAY_OF_WEEK_S).toBe("Mon");
+  });
+
+  it("includes FIRST_DAY_OF_WEEK", () => {
+    expect(buildDataSources(date).sources.FIRST_DAY_OF_WEEK).toBe(1);
+  });
+
+  // Month sources
+  it("includes MONTH_F", () => {
+    expect(buildDataSources(date).sources.MONTH_F).toBe("January");
+  });
+
+  it("includes MONTH_S", () => {
+    expect(buildDataSources(date).sources.MONTH_S).toBe("Jan");
+  });
+
+  it("includes DAYS_IN_MONTH", () => {
+    expect(buildDataSources(date).sources.DAYS_IN_MONTH).toBe(31); // January
+  });
+
+  it("includes DAYS_IN_MONTH for February leap year", () => {
+    const feb = new Date("2024-02-15T12:00:00");
+    expect(buildDataSources(feb).sources.DAYS_IN_MONTH).toBe(29);
+  });
+
+  it("includes MONTH_0_11", () => {
+    expect(buildDataSources(date).sources.MONTH_0_11).toBe(0); // January
+  });
+
+  it("includes MONTH_DAY", () => {
+    const v = buildDataSources(date).sources.MONTH_DAY as number;
+    expect(v).toBeCloseTo(1 + 14 / 31, 5); // Jan, day 15 → 14/31
+  });
+
+  it("includes MONTH_0_11_DAY", () => {
+    const v = buildDataSources(date).sources.MONTH_0_11_DAY as number;
+    expect(v).toBeCloseTo(0 + 14 / 31, 5);
+  });
+
+  // Year sources
+  it("includes YEAR_S", () => {
+    expect(buildDataSources(date).sources.YEAR_S).toBe(24);
+  });
+
+  it("includes YEAR_MONTH", () => {
+    const v = buildDataSources(date).sources.YEAR_MONTH as number;
+    expect(v).toBeCloseTo(2024.0, 5); // January → month0_11=0 → 0/12=0
+  });
+
+  it("includes YEAR_MONTH_DAY", () => {
+    const v = buildDataSources(date).sources.YEAR_MONTH_DAY as number;
+    expect(v).toBeCloseTo(2024 + (0 + 14 / 31) / 12, 5);
+  });
+
+  // Week sources
+  it("includes WEEK_IN_MONTH", () => {
+    const v = buildDataSources(date).sources.WEEK_IN_MONTH;
+    expect(v).toBe(3); // ceil(15/7) = 3
+  });
+
+  it("includes WEEK_IN_YEAR", () => {
+    const v = buildDataSources(date).sources.WEEK_IN_YEAR;
+    expect(v).toBe(3); // ceil(15/7) = 3
+  });
+
+  // Timezone sources
+  it("includes TIMEZONE as a string", () => {
+    expect(typeof buildDataSources(date).sources.TIMEZONE).toBe("string");
+  });
+
+  it("includes TIMEZONE_ABB as a string", () => {
+    expect(typeof buildDataSources(date).sources.TIMEZONE_ABB).toBe("string");
+  });
+
+  it("includes TIMEZONE_ID as a string", () => {
+    expect(typeof buildDataSources(date).sources.TIMEZONE_ID).toBe("string");
+  });
+
+  it("includes TIMEZONE_OFFSET as a string", () => {
+    expect(typeof buildDataSources(date).sources.TIMEZONE_OFFSET).toBe("string");
+  });
+
+  it("includes TIMEZONE_OFFSET_MINUTES as a number", () => {
+    expect(typeof buildDataSources(date).sources.TIMEZONE_OFFSET_MINUTES).toBe("number");
+  });
+
+  it("includes IS_DAYLIGHT_SAVING_TIME as 0 or 1", () => {
+    const v = buildDataSources(date).sources.IS_DAYLIGHT_SAVING_TIME;
+    expect(v === 0 || v === 1).toBe(true);
+  });
 });
 
 // ---------------------------------------------------------------------------
