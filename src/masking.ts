@@ -1,12 +1,13 @@
 import type { RenderContext } from "./shapes.js";
 
-const BLEND_MODE_MAP: Record<string, GlobalCompositeOperation> = {
-  SRC_OVER: "source-over",
-  MULTIPLY: "multiply",
-  SCREEN: "screen",
-  OVERLAY: "overlay",
-  DARKEN: "darken",
-  LIGHTEN: "lighten",
+export const BLEND_MODE_MAP: Record<string, GlobalCompositeOperation> = {
+  CLEAR: "destination-out", SRC: "copy", DST: "destination-over",
+  SRC_OVER: "source-over", DST_OVER: "destination-over", SRC_IN: "source-in", DST_IN: "destination-in",
+  SRC_OUT: "source-out", DST_OUT: "destination-out", SRC_ATOP: "source-atop", DST_ATOP: "destination-atop",
+  XOR: "xor", PLUS: "lighter", MODULATE: "multiply", MULTIPLY: "multiply", SCREEN: "screen", OVERLAY: "overlay",
+  DARKEN: "darken", LIGHTEN: "lighten", COLOR_DODGE: "color-dodge", COLOR_BURN: "color-burn",
+  HARD_LIGHT: "hard-light", SOFT_LIGHT: "soft-light", DIFFERENCE: "difference", EXCLUSION: "exclusion",
+  HUE: "hue", SATURATION: "saturation", COLOR: "color", LUMINOSITY: "luminosity",
 };
 
 export function applyBlendMode(
@@ -22,7 +23,7 @@ export function applyBlendMode(
 export function hasMasking(el: Element): boolean {
   for (const child of el.children) {
     const rm = child.getAttribute("renderMode");
-    if (rm === "SOURCE" || rm === "MASK") return true;
+    if (rm === "ALL" || rm === "MASK") return true;
   }
   return false;
 }
@@ -39,51 +40,17 @@ export async function renderWithMasking(
   ) => Promise<void>,
   renderCtx: RenderContext
 ): Promise<void> {
-  // Create offscreen canvas same size as the group
-  const offscreen = new OffscreenCanvas(width, height);
-  const offCtx = offscreen.getContext("2d")!;
-
-  // Phase 1: Draw SOURCE children (and children with no renderMode, treated as SOURCE)
+  const source = new OffscreenCanvas(Math.max(1, width), Math.max(1, height));
+  const mask = new OffscreenCanvas(Math.max(1, width), Math.max(1, height));
+  const sourceCtx = source.getContext("2d")!, maskCtx = mask.getContext("2d")!;
+  const basis = renderCtx.basis ? renderCtx.basis.multiply(ctx.getTransform()) : ctx.getTransform();
+  const local = { ...renderCtx, basis };
   for (const child of el.children) {
-    const rm = child.getAttribute("renderMode");
-    if (rm === "SOURCE" || !rm) {
-      if (child.tagName !== "Variant") {
-        await renderChild(
-          offCtx as unknown as CanvasRenderingContext2D,
-          child,
-          renderCtx
-        );
-      }
-    }
+    const mode = child.getAttribute("renderMode") ?? "SOURCE";
+    if (mode === "SOURCE" || mode === "ALL") await renderChild(sourceCtx as unknown as CanvasRenderingContext2D, child, local);
+    if (mode === "MASK" || mode === "ALL") await renderChild(maskCtx as unknown as CanvasRenderingContext2D, child, { ...local, register: undefined });
   }
-
-  // Phase 2: Draw MASK children with destination-in compositing
-  // This keeps only the pixels where the mask is drawn
-  for (const child of el.children) {
-    const rm = child.getAttribute("renderMode");
-    if (rm === "MASK") {
-      offCtx.globalCompositeOperation = "destination-in";
-      await renderChild(
-        offCtx as unknown as CanvasRenderingContext2D,
-        child,
-        renderCtx
-      );
-      offCtx.globalCompositeOperation = "source-over";
-    }
-  }
-
-  // Phase 3: Draw ALL children normally on top of the masked result
-  for (const child of el.children) {
-    const rm = child.getAttribute("renderMode");
-    if (rm === "ALL") {
-      await renderChild(
-        offCtx as unknown as CanvasRenderingContext2D,
-        child,
-        renderCtx
-      );
-    }
-  }
-
-  // Composite the offscreen result back to the main canvas
-  ctx.drawImage(offscreen, 0, 0);
+  sourceCtx.globalCompositeOperation = "destination-in";
+  sourceCtx.drawImage(mask, 0, 0);
+  ctx.drawImage(source, 0, 0);
 }

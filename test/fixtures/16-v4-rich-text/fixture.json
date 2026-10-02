@@ -1,0 +1,15 @@
+{
+  "name": "16-v4-rich-text",
+  "description": "Nested font runs, decorations, template parameters, casing, multiline and circular text",
+  "scenarios": [
+    {
+      "name": "interactive",
+      "time": "2024-01-15T10:10:00Z",
+      "timeZone": "UTC",
+      "ambient": false,
+      "threshold": 0.1,
+      "maxDiffPixelPercent": 1.0
+    }
+  ],
+  "assets": "assets"
+}

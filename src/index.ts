@@ -1,58 +1,12 @@
-import { renderElement } from "./shapes.js";
-import { buildDataSources } from "./expressions.js";
-import type { RenderContext } from "./shapes.js";
-
-/**
- * Parse UserConfigurations from the WFF document and expand them into a flat
- * config map that buildDataSources can inject as CONFIGURATION.* sources.
- *
- * ColorConfiguration: expands the selected option's space-separated colors
- *   into CONFIGURATION.{id}.0, CONFIGURATION.{id}.1, … entries.
- * ListConfiguration: adds CONFIGURATION.{id} = selectedOptionId string.
- * BooleanConfiguration: adds CONFIGURATION.{id} = 1 (TRUE) or 0 (FALSE).
- *
- * The optional userConfig argument overrides the XML defaultValue for each id.
- */
-function parseUserConfigurations(
-  doc: Document,
-  userConfig?: Record<string, string | number | boolean>
-): Record<string, string | number | boolean> {
-  const result: Record<string, string | number | boolean> = {};
-  const userConfEl = doc.querySelector("UserConfigurations");
-  if (!userConfEl) return result;
-
-  for (const child of userConfEl.children) {
-    const id = child.getAttribute("id");
-    if (!id) continue;
-
-    if (child.tagName === "ColorConfiguration") {
-      const defaultValue = child.getAttribute("defaultValue") ?? "0";
-      const selectedId = userConfig?.[id] !== undefined
-        ? String(userConfig[id])
-        : defaultValue;
-      for (const opt of child.querySelectorAll("ColorOption")) {
-        if (opt.getAttribute("id") === selectedId) {
-          const colors = (opt.getAttribute("colors") ?? "").split(/\s+/).filter(Boolean);
-          colors.forEach((color, i) => { result[`${id}.${i}`] = color; });
-          break;
-        }
-      }
-    } else if (child.tagName === "ListConfiguration") {
-      const defaultValue = child.getAttribute("defaultValue") ?? "0";
-      result[id] = userConfig?.[id] !== undefined
-        ? String(userConfig[id])
-        : defaultValue;
-    } else if (child.tagName === "BooleanConfiguration") {
-      const defaultValue = child.getAttribute("defaultValue") ?? "TRUE";
-      const val = userConfig?.[id] !== undefined
-        ? String(userConfig[id])
-        : defaultValue;
-      result[id] = val === "TRUE" ? 1 : 0;
-    }
-  }
-
-  return result;
-}
+import { renderElement, type RenderContext } from "./shapes.js";
+import { localizedDataSources } from "./expressions.js";
+import { boolean, number } from "./attributes.js";
+import { prepareScene } from "./scene.js";
+import { loadFonts, template } from "./text.js";
+import { formatTemplate } from "./format.js";
+import { parseColor } from "./color.js";
+import type { Transition } from "./animation.js";
+import type { ImageState } from "./images.js";
 
 export interface RenderOptions {
   xml: string;
@@ -62,171 +16,186 @@ export interface RenderOptions {
   time?: Date;
   ambient?: boolean;
   configuration?: Record<string, string | number | boolean>;
-  /** If true, start a requestAnimationFrame loop and re-render each frame. */
+  flavor?: string;
   animate?: boolean;
+  elapsedMs?: number;
+  /** Preview device ambient transition window; Variant duration/startOffset are fractions of it. */
+  ambientTransitionDurationMs?: number;
+  dataSources?: Record<string, string | number | boolean> | ((time: Date) => Record<string, string | number | boolean>);
+  locale?: string;
+  timeZone?: string;
+  calendar?: string;
+  currency?: string;
+  is24Hour?: boolean;
+  strings?: Record<string, string>;
+  photos?: Record<string, string[]>;
+  visible?: boolean;
+  random?: () => number;
+  onLaunch?: (target: string) => void;
+  onError?: (error: unknown) => void;
 }
-
+export interface AccessibilityItem { name: string; text: string; bounds: { x: number; y: number; width: number; height: number }; launchTarget?: string }
 export interface RenderResult {
   metadata: Map<string, string>;
-  /** Stop the animation loop (only present when animate=true). */
-  stop?: () => void;
+  accessibility: AccessibilityItem[];
+  update: (changes: Partial<RenderOptions>) => Promise<void>;
+  tap: (x: number, y: number) => Promise<void>;
+  stop: () => void;
+}
+const activeCanvases = new WeakMap<HTMLCanvasElement, RenderResult>();
+interface Hit { key: string; inverse: DOMMatrix; width: number; height: number; launch?: string }
+
+function parseConfigurations(doc: Document, options: RenderOptions): Record<string, string | number | boolean> {
+  const result: Record<string, string | number | boolean> = {};
+  const user = doc.querySelector("UserConfigurations");
+  if (!user) return { ...options.configuration };
+  const flavors = user.querySelector(":scope > Flavors");
+  const flavorId = options.flavor ?? flavors?.getAttribute("defaultFlavor") ?? flavors?.getAttribute("defaultValue");
+  const flavor = Array.from(flavors?.children ?? []).find(f => f.getAttribute("id") === flavorId);
+  if (options.flavor && !flavor) throw new Error(`Unknown flavor: ${options.flavor}`);
+  const preset: Record<string, string> = {};
+  for (const conf of flavor?.querySelectorAll(":scope > Configuration") ?? []) preset[conf.getAttribute("id") ?? ""] = conf.getAttribute("optionId") ?? "";
+  for (const child of user.children) {
+    const id = child.getAttribute("id"); if (!id) continue;
+    const selected = options.configuration?.[id] ?? preset[id] ?? child.getAttribute("defaultValue");
+    if (child.tagName === "BooleanConfiguration") result[id] = boolean(String(selected ?? "TRUE")) ? 1 : 0;
+    else if (child.tagName === "ColorConfiguration" || child.tagName === "ListConfiguration") {
+      const optionTag = child.tagName === "ColorConfiguration" ? "ColorOption" : "ListOption";
+      const entries = Array.from(child.children).filter(c => c.tagName === optionTag);
+      const option = entries.find(c => c.getAttribute("id") === String(selected)) ?? (selected == null ? entries[0] : undefined);
+      if (!option && entries.length) throw new Error(`Unknown option ${selected} for ${id}`);
+      result[id] = option?.getAttribute("id") ?? String(selected ?? "0");
+      if (child.tagName === "ColorConfiguration") (option?.getAttribute("colors") ?? "").trim().split(/\s+/).filter(Boolean).forEach((color, i) => { result[`${id}.${i}`] = color; });
+    } else if (child.tagName === "PhotosConfiguration") result[id] = id;
+  }
+  for (const [key, value] of Object.entries(options.configuration ?? {})) if (!(key in result)) result[key] = value;
+  return result;
+}
+function stringsFromAssets(options: RenderOptions): Record<string, string> {
+  const result: Record<string, string> = {};
+  const language = (options.locale ?? "en-US").split("-")[0];
+  for (const qualifier of ["values", `values-${language}`]) {
+    const buffer = options.assets?.get(`res/${qualifier}/strings.xml`) ?? options.assets?.get(`${qualifier}/strings.xml`);
+    if (!buffer) continue;
+    const doc = new DOMParser().parseFromString(new TextDecoder().decode(buffer), "text/xml");
+    for (const el of doc.querySelectorAll("string")) result[el.getAttribute("name") ?? ""] = (el.textContent ?? "").replace(/\\n/g, "\n").replace(/\\'/g, "'");
+  }
+  return { ...result, ...options.strings };
 }
 
-/**
- * Perform a single render pass of the watch face onto the canvas.
- * Returns the scene metadata map extracted from the document.
- */
-async function renderFrame(
-  canvas: HTMLCanvasElement,
-  ctx: CanvasRenderingContext2D,
-  doc: Document,
-  options: RenderOptions,
-  elapsedMs: number,
-  time: Date
-): Promise<Map<string, string>> {
-  const root = doc.documentElement;
-
-  const width = parseInt(root.getAttribute("width") ?? "450", 10);
-  const height = parseInt(root.getAttribute("height") ?? "450", 10);
-  const clipShape = root.getAttribute("clipShape");
-
-  // Collect metadata (only needs to happen once but is cheap)
-  const metadata = new Map<string, string>();
-  const metaElements = root.querySelectorAll("Metadata");
-  for (const el of metaElements) {
-    const key = el.getAttribute("key");
-    const value = el.getAttribute("value");
-    if (key !== null && value !== null) {
-      metadata.set(key, value);
+export async function renderWatchFace(canvas: HTMLCanvasElement, initial: RenderOptions): Promise<RenderResult> {
+  activeCanvases.get(canvas)?.stop();
+  let options = { ...initial };
+  let stopped = false, raf = 0, queue = Promise.resolve();
+  const start = performance.now();
+  const states = new Map<string, Transition>(), imageStates = new Map<string, ImageState>(), events = new Map<string, number>();
+  const hits: Hit[] = [];
+  let hitClip: { path: Path2D; ctx: CanvasRenderingContext2D; scaleX: number; scaleY: number } | undefined;
+  const result: RenderResult = { metadata: new Map(), accessibility: [], update, tap, stop };
+  let wasVisible = options.visible !== false;
+  let hiddenAt: number | undefined, pausedMs = 0, frameId = 0;
+  async function draw(): Promise<void> {
+    if (stopped) return;
+    frameId++;
+    const doc = new DOMParser().parseFromString(options.xml, "text/xml"), root = doc.documentElement;
+    if (root.tagName === "parsererror" || root.querySelector("parsererror")) throw new Error("Invalid WFF XML: " + root.textContent?.slice(0, 200));
+    const xmlWidth = number(root, "width", 450), xmlHeight = number(root, "height", 450);
+    const width = options.width ?? xmlWidth, height = options.height ?? xmlHeight;
+    if (![xmlWidth, xmlHeight, width, height].every(v => Number.isFinite(v) && v > 0)) throw new Error("WatchFace dimensions must be positive finite numbers");
+    if (canvas.width !== width) canvas.width = width;
+    if (canvas.height !== height) canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    result.metadata.clear(); for (const el of root.querySelectorAll("Metadata")) result.metadata.set(el.getAttribute("key") ?? "", el.getAttribute("value") ?? "");
+    hits.length = 0; hitClip = undefined; result.accessibility.length = 0;
+    const realElapsed = options.elapsedMs ?? performance.now() - start;
+    const visible = options.visible !== false;
+    if (!visible && wasVisible) hiddenAt = realElapsed;
+    if (visible && !wasVisible) {
+      pausedMs += realElapsed - (hiddenAt ?? realElapsed); hiddenAt = undefined;
+      events.set("ON_VISIBLE", (events.get("ON_VISIBLE") ?? 0) + 1);
+    }
+    wasVisible = visible;
+    if (!ctx || !visible) {
+      for (const state of imageStates.values()) if (state.hiddenAt === undefined) state.hiddenAt = realElapsed - pausedMs;
+      return;
+    }
+    const elapsed = options.elapsedMs ?? realElapsed - pausedMs;
+    const time = options.time ? new Date(options.time.getTime() + (options.animate && options.elapsedMs === undefined ? elapsed : 0)) : new Date();
+    const config = parseConfigurations(doc, options);
+    const expressionCtx = localizedDataSources(time, config, options.is24Hour, options.locale, options.timeZone, options.calendar);
+    expressionCtx.currency = options.currency; expressionCtx.strings = stringsFromAssets(options); expressionCtx.random = options.random;
+    const injected = typeof options.dataSources === "function" ? options.dataSources(time) : options.dataSources;
+    for (const [key, value] of Object.entries(injected ?? {})) expressionCtx.sources[key] = typeof value === "boolean" ? Number(value) : value;
+    const scene = root.querySelector(":scope > Scene");
+    if (!scene) return;
+    if (!scene.hasAttribute("width")) scene.setAttribute("width", String(xmlWidth));
+    if (!scene.hasAttribute("height")) scene.setAttribute("height", String(xmlHeight));
+    const contexts = prepareScene(scene, expressionCtx, options.ambient ?? false, elapsed, states, options.ambientTransitionDurationMs);
+    await loadFonts(doc, options.assets ?? new Map());
+    ctx.resetTransform(); ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.save();
+    try {
+      ctx.scale(width / xmlWidth, height / xmlHeight);
+      const clip = new Path2D();
+      if ((root.getAttribute("clipShape") ?? "CIRCLE") === "CIRCLE") clip.arc(xmlWidth / 2, xmlHeight / 2, Math.min(xmlWidth, xmlHeight) / 2, 0, 2 * Math.PI);
+      else clip.roundRect(0, 0, xmlWidth, xmlHeight, { x: root.getAttribute("clipShape") === "RECTANGLE" ? number(root, "cornerRadiusX") : 0, y: root.getAttribute("clipShape") === "RECTANGLE" ? number(root, "cornerRadiusY") : 0 });
+      ctx.clip(clip); hitClip = { path: clip, ctx, scaleX: width / xmlWidth, scaleY: height / xmlHeight };
+      ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+      ctx.fillStyle = parseColor(scene.getAttribute("backgroundColor") ?? "#000000"); ctx.fillRect(0, 0, xmlWidth, xmlHeight);
+      const renderCtx: RenderContext = { expressionCtx, contexts, ambient: options.ambient ?? false, assets: options.assets ?? new Map(), elapsedMs: elapsed, frameId, events, imageStates, photos: options.photos, random: options.random,
+        register(target, el, local) {
+          const w = number(el, "width"), h = number(el, "height"), transform = local.basis ? local.basis.multiply(target.getTransform()) : target.getTransform();
+          const launch = el.querySelector(":scope > Launch")?.getAttribute("target") ?? undefined;
+          const hasEvents = el.querySelector("Images, Photos, AnimatedImages, AnimationController");
+          if ((launch || hasEvents) && w > 0 && h > 0) hits.push({ key: el.getAttribute("data-wff-key") ?? "", inverse: transform.inverse(), width: w, height: h, launch });
+          const reader = el.querySelector(":scope > ScreenReader");
+          if (reader) {
+            const id = reader.getAttribute("stringId") ?? "";
+            const values = Array.from(reader.children).filter(c => c.tagName === "Parameter").map(c => templateParameter(c, local));
+            const text = formatTemplate(local.expressionCtx.strings?.[id.replace(/^@string\//, "")] ?? id, values, local.expressionCtx);
+            const corners = [[0, 0], [w, 0], [0, h], [w, h]].map(([x, y]) => transform.transformPoint({ x, y }));
+            const x = Math.min(...corners.map(p => p.x)), y = Math.min(...corners.map(p => p.y));
+            result.accessibility.push({ name: el.getAttribute("name") ?? id, text, bounds: { x, y, width: Math.max(...corners.map(p => p.x)) - x, height: Math.max(...corners.map(p => p.y)) - y }, launchTarget: launch });
+          }
+        },
+      };
+      await renderElement(ctx, scene, renderCtx);
+      for (const state of imageStates.values()) if (state.lastSeen !== frameId && state.hiddenAt === undefined) state.hiddenAt = elapsed;
+      if (result.accessibility.length) { canvas.setAttribute("role", "img"); canvas.setAttribute("aria-label", result.accessibility.map(a => a.text).join("; ")); }
+      else canvas.removeAttribute("aria-label");
+    } finally { ctx.restore(); }
+  }
+  function schedule(): Promise<void> { queue = queue.catch(() => {}).then(draw); return queue; }
+  function update(changes: Partial<RenderOptions>): Promise<void> {
+    if (changes.xml !== undefined && changes.xml !== options.xml) { states.clear(); imageStates.clear(); events.clear(); }
+    const wasAnimating = options.animate;
+    options = { ...options, ...changes };
+    if (changes.animate === false) cancelAnimationFrame(raf);
+    if (changes.animate && !wasAnimating && !stopped) raf = requestAnimationFrame(() => { void frame(); });
+    return schedule();
+  }
+  async function tap(x: number, y: number): Promise<void> {
+    if (stopped || options.ambient || options.visible === false) return;
+    if (hitClip && !hitClip.ctx.isPointInPath(hitClip.path, x / hitClip.scaleX, y / hitClip.scaleY)) return;
+    for (const hit of [...hits].reverse()) {
+      const point = hit.inverse.transformPoint({ x, y });
+      if (point.x >= 0 && point.y >= 0 && point.x <= hit.width && point.y <= hit.height) {
+        events.set(`TAP:${hit.key}`, (events.get(`TAP:${hit.key}`) ?? 0) + 1);
+        if (hit.launch) options.onLaunch?.(hit.launch);
+        await schedule(); return;
+      }
     }
   }
-
-  // Reset canvas state for this frame
-  ctx.resetTransform?.();
-  ctx.clearRect(0, 0, width, height);
-  ctx.save();
-
-  ctx.globalAlpha = 1;
-  ctx.globalCompositeOperation = "source-over";
-
-  // Apply circular clip mask
-  if (clipShape === "CIRCLE") {
-    ctx.beginPath();
-    ctx.arc(width / 2, height / 2, Math.min(width, height) / 2, 0, Math.PI * 2);
-    ctx.clip();
-  }
-
-  // Fill background
-  const scene = root.querySelector("Scene");
-  const backgroundColor = scene?.getAttribute("backgroundColor") ?? "#000000";
-  ctx.fillStyle = backgroundColor;
-  ctx.fillRect(0, 0, width, height);
-
-  // Build expression context from current time and configuration.
-  // Merge XML-declared UserConfigurations defaults with any caller-provided overrides.
-  const parsedConfig = parseUserConfigurations(doc, options.configuration);
-  const mergedConfig = { ...parsedConfig, ...options.configuration };
-  const expressionCtx = buildDataSources(time, mergedConfig, true);
-  const renderCtx: RenderContext = {
-    expressionCtx,
-    ambient: options.ambient ?? false,
-    assets: options.assets ?? new Map(),
-    elapsedMs,
-  };
-
-  // Walk Scene children and render shapes
-  if (scene) {
-    for (const child of scene.children) {
-      await renderElement(ctx, child, renderCtx);
-    }
-  }
-
-  ctx.restore();
-  return metadata;
+  function stop() { stopped = true; cancelAnimationFrame(raf); canvas.removeEventListener("click", click); if (activeCanvases.get(canvas) === result) activeCanvases.delete(canvas); }
+  function click(event: MouseEvent) { const rect = canvas.getBoundingClientRect(); void tap((event.clientX - rect.left) * canvas.width / rect.width, (event.clientY - rect.top) * canvas.height / rect.height).catch(error => options.onError?.(error)); }
+  canvas.addEventListener("click", click);
+  try { await schedule(); } catch (error) { stop(); throw error; }
+  const frame = async () => { if (stopped) return; try { await schedule(); } catch (error) { stop(); options.onError?.(error); return; } if (!stopped && options.animate) raf = requestAnimationFrame(() => { void frame(); }); };
+  if (options.animate) raf = requestAnimationFrame(() => { void frame(); });
+  activeCanvases.set(canvas, result);
+  return result;
 }
 
-/**
- * Render a WFF v4 watch face XML onto a canvas element.
- *
- * If options.animate is true, starts a requestAnimationFrame loop and
- * re-renders each frame with updated time and elapsed milliseconds.
- * Returns a stop() function in the result to cancel the loop.
- *
- * For static (snapshot) renders, elapsedMs = 0 so all animations are at
- * their start state.
- */
-export async function renderWatchFace(
-  canvas: HTMLCanvasElement,
-  options: RenderOptions
-): Promise<RenderResult> {
-  // Parse the document once; for animation loops the same parsed doc is
-  // reused each frame (transforms mutate attributes in-place, which is safe
-  // within a single render pass since they always re-apply from the source).
-  const doc = new DOMParser().parseFromString(options.xml, "text/xml");
-  const root = doc.documentElement;
-
-  // Check for XML parse errors
-  if (root.tagName === "parsererror" || root.querySelector("parsererror")) {
-    throw new Error("Invalid WFF XML: " + root.textContent?.slice(0, 200));
-  }
-
-  // Extract dimensions and resize canvas (only needed once)
-  const xmlWidth = parseInt(root.getAttribute("width") ?? "450", 10);
-  const xmlHeight = parseInt(root.getAttribute("height") ?? "450", 10);
-  const width = options.width ?? xmlWidth;
-  const height = options.height ?? xmlHeight;
-  canvas.width = width;
-  canvas.height = height;
-
-  const ctx = canvas.getContext("2d");
-  if (!ctx) {
-    const metadata = new Map<string, string>();
-    return { metadata };
-  }
-
-  if (options.animate) {
-    // Animation mode — rAF loop
-    const startTime = performance.now();
-    let animFrameId: number;
-    let metadata = new Map<string, string>();
-
-    // Re-parse each frame so attribute mutations from transforms don't
-    // accumulate across frames.
-    const frame = async () => {
-      const now = new Date();
-      const elapsed = performance.now() - startTime;
-      // Re-parse XML each frame to get a fresh DOM (transform mutations are
-      // in-place so we need a clean copy each frame)
-      const freshDoc = new DOMParser().parseFromString(options.xml, "text/xml");
-      if (freshDoc.documentElement.tagName === "parsererror") return;
-      metadata = await renderFrame(canvas, ctx, freshDoc, options, elapsed, now);
-      animFrameId = requestAnimationFrame(() => {
-        void frame();
-      });
-    };
-
-    animFrameId = requestAnimationFrame(() => {
-      void frame();
-    });
-
-    // Do an initial synchronous-ish render for the first frame
-    const freshDoc = new DOMParser().parseFromString(options.xml, "text/xml");
-    const initialMetadata = await renderFrame(
-      canvas,
-      ctx,
-      freshDoc,
-      options,
-      0,
-      options.time ?? new Date()
-    );
-
-    return {
-      metadata: initialMetadata,
-      stop: () => cancelAnimationFrame(animFrameId),
-    };
-  }
-
-  // Static single-frame render — elapsedMs = 0
-  const metadata = await renderFrame(canvas, ctx, doc, options, 0, options.time ?? new Date());
-  return { metadata };
+function templateParameter(el: Element, ctx: RenderContext): string | number {
+  const wrapper = el.ownerDocument.createElement("Template"); wrapper.append("%s"); wrapper.append(el.cloneNode());
+  return template(wrapper, ctx.expressionCtx);
 }

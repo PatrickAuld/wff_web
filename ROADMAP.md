@@ -1,3 +1,5 @@
+Current implementation and remaining verification: [non-complication WFF v4 coverage](docs/wff-v4-coverage.md). The phases below are historical planning material.
+
 # WFF v4 Web Renderer — Implementation Roadmap
 
 Each phase builds on the previous one. Every phase gets a design doc and implementation spec before coding begins. Phases are ordered by dependency: later phases require primitives from earlier ones.

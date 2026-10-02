@@ -12,6 +12,7 @@ export interface Scenario {
   name: string;
   time: string; // ISO 8601 e.g. "2024-01-15T10:10:30"
   ambient: boolean;
+  timeZone?: string;
   threshold?: number; // pixelmatch threshold, default 0.1
   maxDiffPixelPercent?: number; // max % diff pixels to pass, default 1.0
 }
@@ -43,6 +44,7 @@ export interface RenderConfig {
   height: number;
   time: Date;
   ambient: boolean;
+  timeZone?: string;
 }
 
 /** Default values */

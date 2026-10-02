@@ -25,7 +25,7 @@ async function main() {
           ambient: scenario.ambient,
         });
 
-        const baselinesDir = join(fixture.dir, "baselines");
+        const baselinesDir = join(fixture.dir, "browser-snapshots");
         await mkdir(baselinesDir, { recursive: true });
 
         const outPath = join(baselinesDir, `${scenario.name}.png`);
@@ -37,7 +37,7 @@ async function main() {
     await renderer.close();
   }
 
-  console.log("Done.");
+  console.log("Browser snapshots exported for inspection. Native conformance references are imported separately.");
 }
 
 main().catch((err) => {

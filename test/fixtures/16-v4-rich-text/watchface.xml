@@ -1,0 +1,11 @@
+<WatchFace width="450" height="450" clipShape="CIRCLE">
+  <Scene backgroundColor="#000000">
+    <PartText x="40" y="80" width="370" height="100">
+      <Localization locales="en_US" timeZone="UTC"/>
+      <Text maxLines="3"><Font family="sans-serif" size="30" color="#FFFFFF"><Shadow color="#FF0000"><Upper><Template stringId="greeting"><Parameter expression="7"/></Template></Upper></Shadow></Font><Font size="20" color="#00FF00">&#10;Multiple font runs</Font></Text>
+    </PartText>
+    <PartText x="60" y="195" width="330" height="60"><Text isAutoSize="TRUE" ellipsis="TRUE"><Font size="44"><Outline color="#00AAFF" width="1">Scaled text with ellipsis when necessary</Outline></Font></Text></PartText>
+    <PartText x="0" y="0" width="450" height="450"><TextCircular centerX="225" centerY="225" width="360" height="360" startAngle="110" endAngle="250" direction="CLOCKWISE"><Font size="24"><OutGlow color="#FFFF00">Circular font rendering</OutGlow></Font></TextCircular></PartText>
+    <DigitalClock x="135" y="300" width="180" height="45"><Localization timeZone="UTC"/><TimeText x="0" y="0" width="180" height="45" format="HH:mm" hourFormat="24" align="CENTER"><Font size="32"/></TimeText></DigitalClock>
+  </Scene>
+</WatchFace>

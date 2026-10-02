@@ -1,3 +1,4 @@
+import { mixColor } from "./color.js";
 import { evaluateExpression, type ExpressionContext } from "./expressions.js";
 
 // ---------------------------------------------------------------------------
@@ -22,7 +23,7 @@ export function ease(t: number, interpolation: string, controls?: string): numbe
       return 2.70158 * t * t * t - 1.70158 * t * t;
     case "CUBIC_BEZIER": {
       if (!controls) return t;
-      const parts = controls.split(",").map(Number);
+      const parts = controls.trim().split(/[\s,]+/).map(Number);
       const [x1, y1, x2, y2] = parts;
       return cubicBezier(x1, y1, x2, y2, t);
     }
@@ -68,7 +69,8 @@ function cubicBezier(x1: number, y1: number, x2: number, y2: number, x: number):
  *
  * Supports two modes:
  * - Expression-based: `value` attribute is evaluated each frame.
- * - Animation-based: `from`/`to` + `Animation` child define a timed tween.
+ * - Animated: changing `value` + `Animation` transitions from the displayed value.
+ * - Legacy extension: `from`/`to` define an elapsed-time tween.
  *
  * `mode` controls whether the computed value is set absolutely (TO) or added
  * to the existing attribute value (BY).
@@ -76,7 +78,9 @@ function cubicBezier(x1: number, y1: number, x2: number, y2: number, x: number):
 export function applyTransforms(
   el: Element,
   expressionCtx: ExpressionContext,
-  elapsedMs: number
+  elapsedMs: number,
+  state?: Map<string, Transition>,
+  key = ""
 ): void {
   for (const child of el.children) {
     if (child.tagName !== "Transform") continue;
@@ -138,20 +142,60 @@ export function applyTransforms(
 
         const value = from + (to - from) * t;
         applyValue(el, target, mode, value);
+      } else if (valueExpr) {
+        const value = evaluateExpression(valueExpr, expressionCtx);
+        applyValue(el, target, mode, state ? transition(value, animEl, elapsedMs, state, `${key}.${target}`) : value);
       }
     } else if (valueExpr) {
       // Expression-based transform
       const value = evaluateExpression(valueExpr, expressionCtx);
-      applyValue(el, target, mode, Number(value));
+      applyValue(el, target, mode, value);
     }
   }
 }
 
-function applyValue(el: Element, target: string, mode: string, value: number): void {
+function applyValue(el: Element, target: string, mode: string, value: number | string): void {
   if (mode === "TO") {
     el.setAttribute(target, String(value));
   } else if (mode === "BY") {
     const base = parseFloat(el.getAttribute(target) ?? "0");
-    el.setAttribute(target, String(base + value));
+    el.setAttribute(target, String(base + Number(value)));
   }
+}
+
+export interface Transition {
+  from: number | string;
+  to: number | string;
+  start: number;
+  current: number | string;
+}
+
+export function transition(value: number | string, animation: Element, now: number, states: Map<string, Transition>, key: string, timing?: { durationMs: number; delayMs: number }): number | string {
+  let state = states.get(key);
+  if (!state) {
+    states.set(key, { from: value, to: value, start: now, current: value });
+    return value;
+  }
+  if (value !== state.to) {
+    state = { from: state.current, to: value, start: now, current: state.current };
+    states.set(key, state);
+  }
+  const duration = timing?.durationMs ?? Number(animation.getAttribute("duration") ?? 1) * 1000;
+  const repeat = Number(animation.getAttribute("repeat") ?? 0);
+  if (now < state.start + (timing?.delayMs ?? 0)) return state.current;
+  let elapsed = Math.max(0, now - state.start - (timing?.delayMs ?? 0));
+  if (duration > 0 && (repeat === -1 || elapsed < duration * (repeat + 1))) elapsed %= duration;
+  const fps = Number(animation.getAttribute("fps") ?? 15);
+  if (fps > 0 && elapsed < duration) elapsed = Math.floor(elapsed * fps / 1000) * 1000 / fps;
+  const t = ease(duration > 0 ? elapsed / duration : 1, animation.getAttribute("interpolation") ?? "LINEAR", animation.getAttribute("controls") ?? "0.5 0.5 0.5 0.5");
+  if (typeof state.from === "string" && state.from.startsWith("#") && String(value).startsWith("#")) {
+    state.current = mixColor(state.from, String(value), t);
+  } else if (Number.isFinite(Number(state.from)) && Number.isFinite(Number(value))) {
+    let delta = Number(value) - Number(state.from);
+    const direction = animation.getAttribute("angleDirection");
+    if (direction === "CLOCKWISE") delta = ((delta % 360) + 360) % 360;
+    if (direction === "COUNTER_CLOCKWISE") delta = -(((-delta % 360) + 360) % 360);
+    state.current = t >= 1 ? value : Number(state.from) + delta * t;
+  } else state.current = value;
+  return state.current;
 }

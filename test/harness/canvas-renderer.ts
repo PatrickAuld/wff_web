@@ -45,6 +45,7 @@ export class CanvasRenderer {
         assetsEntries,
         timeIso,
         ambient,
+        width, height, timeZone,
       }) => {
         const canvas = document.getElementById(
           "watchface"
@@ -66,7 +67,7 @@ export class CanvasRenderer {
           xml,
           assets,
           time: new Date(timeIso),
-          ambient,
+          ambient, width, height, timeZone,
         });
 
         return canvas.toDataURL("image/png");
@@ -77,7 +78,7 @@ export class CanvasRenderer {
           ([name, buf]) => [name, buf.toString("base64")]
         ),
         timeIso: config.time.toISOString(),
-        ambient: config.ambient,
+        ambient: config.ambient, width: config.width, height: config.height, timeZone: config.timeZone ?? "UTC",
       }
     );
 

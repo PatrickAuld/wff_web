@@ -28,6 +28,11 @@ export async function renderCondition(
   renderChild: (ctx: CanvasRenderingContext2D, el: Element, renderCtx: RenderContext) => Promise<void>,
   renderCtx: RenderContext
 ): Promise<void> {
+  if (renderCtx.contexts) {
+    const branch = Array.from(el.children).find(c => c.tagName === "Compare" || c.tagName === "Default");
+    if (branch) for (const child of branch.children) await renderChild(ctx, child, renderCtx);
+    return;
+  }
   // 1. Evaluate named expressions from the Expressions container
   const namedResults: Record<string, number | string> = {};
   const expressionsEl = el.querySelector(":scope > Expressions");
@@ -35,10 +40,10 @@ export async function renderCondition(
     for (const exprEl of expressionsEl.children) {
       if (exprEl.tagName === "Expression") {
         const name = exprEl.getAttribute("name") ?? "";
-        const expr = exprEl.getAttribute("expression") ?? "0";
+        const expr = exprEl.getAttribute("expression") ?? exprEl.textContent?.trim() ?? "0";
         // Each expression can reference previously computed named results
         const augCtx: ExpressionContext = {
-          sources: { ...renderCtx.expressionCtx.sources, ...namedResults },
+          ...renderCtx.expressionCtx, sources: { ...renderCtx.expressionCtx.sources, ...namedResults },
         };
         namedResults[name] = evaluateExpression(expr, augCtx);
       }
@@ -47,7 +52,7 @@ export async function renderCondition(
 
   // 2. Build augmented context with named results available for Compare expressions
   const augCtx: ExpressionContext = {
-    sources: { ...renderCtx.expressionCtx.sources, ...namedResults },
+    ...renderCtx.expressionCtx, sources: { ...renderCtx.expressionCtx.sources, ...namedResults },
   };
   const augRenderCtx: RenderContext = { ...renderCtx, expressionCtx: augCtx };
 

@@ -1,0 +1,22 @@
+import { readFile, mkdir, copyFile, writeFile } from "node:fs/promises";
+import { resolve, join } from "node:path";
+import { PNG } from "pngjs";
+import { loadFixture } from "../test/harness/fixtures.js";
+import { verifyReference, type NativeReference } from "../test/harness/reference.js";
+import { DEFAULTS } from "../test/harness/types.js";
+
+const [fixturePath, scenarioName, pngPath, manifestPath] = process.argv.slice(2);
+if (!fixturePath || !scenarioName || !pngPath || !manifestPath) throw new Error("Usage: pnpm exec tsx scripts/import-native-reference.ts <fixture-dir> <scenario> <native.png> <capture.json>");
+const fixture = await loadFixture(resolve(fixturePath));
+if (!fixture) throw new Error("Fixture not found");
+const scenario = fixture.config.scenarios.find(s => s.name === scenarioName);
+if (!scenario || !/^[a-z0-9-]+$/i.test(scenarioName)) throw new Error("Unknown scenario");
+const manifest: NativeReference = JSON.parse(await readFile(manifestPath, "utf8"));
+verifyReference(manifest, fixture, scenario, DEFAULTS.watchWidth, DEFAULTS.watchHeight);
+const png = PNG.sync.read(await readFile(pngPath));
+if (png.width !== manifest.width || png.height !== manifest.height) throw new Error("PNG size differs from capture metadata");
+const dir = join(fixture.dir, "baselines");
+await mkdir(dir, { recursive: true });
+await copyFile(pngPath, join(dir, `${scenarioName}.png`));
+await writeFile(join(dir, `${scenarioName}.json`), JSON.stringify(manifest, null, 2) + "\n");
+console.log(`Imported native reference for ${fixture.config.name}/${scenarioName}`);

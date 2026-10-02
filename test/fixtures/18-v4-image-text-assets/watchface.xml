@@ -1,0 +1,8 @@
+<WatchFace width="450" height="450" clipShape="CIRCLE">
+  <BitmapFonts><BitmapFont name="blocks"><Character name="A" resource="red" width="16" height="16"/><Word name="OK" resource="green" width="16" height="16"/></BitmapFont></BitmapFonts>
+  <Scene backgroundColor="#000000">
+    <PartImage x="80" y="90" width="120" height="120"><Images change="TAP" changeDirection="FORWARD"><Image resource="red"/><Image resource="green"/></Images><ImageFilters><HsbFilter hueRotate="120" saturate="1" brightness="0.7"/></ImageFilters></PartImage>
+    <PartAnimatedImage x="250" y="90" width="120" height="120"><SequenceImages frameRate="2" thumbnail="red"><Image resource="red"/><Image resource="green"/></SequenceImages><AnimationController play="TAP" beforePlaying="FIRST_FRAME" afterPlaying="FIRST_FRAME"/></PartAnimatedImage>
+    <PartText x="70" y="240" width="310" height="55"><Text><BitmapFont family="blocks" size="42">AOK</BitmapFont><Font size="30"><InlineImage resource="red" width="32" height="32" overlapLeft="2" overlapRight="2"/></Font></Text></PartText>
+  </Scene>
+</WatchFace>

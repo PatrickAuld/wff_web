@@ -18,7 +18,7 @@ export function applyStroke(ctx: CanvasRenderingContext2D, el: Element): void {
   const strokeEl = el.querySelector(":scope > Stroke");
   if (!strokeEl) return;
 
-  ctx.strokeStyle = parseColor(strokeEl.getAttribute("color"));
+  ctx.strokeStyle = createGradient(ctx, strokeEl) ?? parseColor(strokeEl.getAttribute("color"));
   ctx.lineWidth = parseFloat(strokeEl.getAttribute("thickness") ?? "1");
 
   const cap = strokeEl.getAttribute("cap");
@@ -144,4 +144,56 @@ function clampStop(value: number): number {
   }
 
   return Math.min(1, Math.max(0, value));
+}
+
+export function renderWeightedStroke(ctx: CanvasRenderingContext2D, el: Element): boolean {
+  const stroke = el.querySelector(":scope > WeightedStroke");
+  if (!stroke) return false;
+  const colors = (stroke.getAttribute("colors") ?? "").trim().split(/\s+/).filter(Boolean);
+  const interpolate = stroke.getAttribute("interpolate")?.toUpperCase() === "TRUE";
+  const weights = stroke.hasAttribute("weights") ? stroke.getAttribute("weights")!.trim().split(/\s+/).map(Number) : colors.slice(0, interpolate ? Math.max(1, colors.length - 1) : colors.length).map(() => 1);
+  if (!(colors.length === weights.length || (interpolate && colors.length === weights.length + 1)) || weights.some(w => w < 0 || !Number.isFinite(w))) throw new Error("WeightedStroke colors and weights must match");
+  const total = weights.reduce((a, b) => a + b, 0);
+  if (!total) return true;
+  const n = (name: string, fallback = 0) => Number(el.getAttribute(name) ?? fallback);
+  const gap = Number(stroke.getAttribute("discreteGap") ?? 0);
+  const line = el.tagName === "Line";
+  const sx = n("startX"), sy = n("startY"), dx = n("endX") - sx, dy = n("endY") - sy;
+  if (line && dx !== 0 && dy !== 0) throw new Error("WeightedStroke Line must be horizontal or vertical");
+  ctx.save();
+  ctx.lineWidth = Number(stroke.getAttribute("thickness") ?? 1);
+  ctx.lineCap = (stroke.getAttribute("cap") ?? "BUTT").toLowerCase() as CanvasLineCap;
+  ctx.setLineDash([]);
+
+  const direction = el.getAttribute("direction") === "COUNTER_CLOCKWISE" ? -1 : 1;
+  const start = n("startAngle"), end = n("endAngle", 360);
+  const raw = (end - start) * direction;
+  const length = line ? Math.hypot(dx, dy) : Math.abs(raw) >= 360 ? 360 : ((raw % 360) + 360) % 360;
+  const usable = Math.max(0, length - gap * (weights.length - 1));
+  let position = 0;
+  for (let i = 0; i < weights.length; i++) {
+    const segment = usable * weights[i] / total;
+    ctx.beginPath();
+    if (line) {
+      const t0 = length ? position / length : 0, t1 = length ? (position + segment) / length : 0;
+      ctx.moveTo(sx + dx * t0, sy + dy * t0); ctx.lineTo(sx + dx * t1, sy + dy * t1);
+      if (interpolate && i + 1 < colors.length) {
+        const gradient = ctx.createLinearGradient(sx + dx * t0, sy + dy * t0, sx + dx * t1, sy + dy * t1);
+        gradient.addColorStop(0, parseColor(colors[i])); gradient.addColorStop(1, parseColor(colors[i + 1])); ctx.strokeStyle = gradient;
+      } else ctx.strokeStyle = parseColor(colors[i]);
+    } else {
+      const a = (start + direction * position - 90) * Math.PI / 180, b = (start + direction * (position + segment) - 90) * Math.PI / 180;
+      ctx.ellipse(n("centerX"), n("centerY"), n("width") / 2, n("height") / 2, 0, a, b, direction < 0);
+      ctx.strokeStyle = parseColor(colors[i]);
+      if (interpolate && i + 1 < colors.length) {
+        const gradient = ctx.createConicGradient(direction > 0 ? a : b, n("centerX"), n("centerY"));
+        gradient.addColorStop(0, parseColor(colors[direction > 0 ? i : i + 1]));
+        gradient.addColorStop(segment / 360, parseColor(colors[direction > 0 ? i + 1 : i])); ctx.strokeStyle = gradient;
+      }
+    }
+    if (segment > 0) ctx.stroke();
+    position += segment + gap;
+  }
+  ctx.restore();
+  return true;
 }

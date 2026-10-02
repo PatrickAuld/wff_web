@@ -18,7 +18,7 @@ document.body.appendChild(canvas);
 
 const xml = `<WatchFace width="450" height="450" clipShape="CIRCLE">
   <Scene backgroundColor="#1a1a2e">
-    <AnalogClock centerX="225" centerY="225">
+    <AnalogClock x="0" y="0" width="450" height="450">
       <HourHand resource="hour.png" x="0" y="0" width="450" height="450"
         pivotX="0.5" pivotY="0.5" />
       <MinuteHand resource="minute.png" x="0" y="0" width="450" height="450"
@@ -110,32 +110,78 @@ Renders a WFF XML watch face onto the provided `HTMLCanvasElement`.
 | Option | Type | Default | Description |
 |---|---|---|---|
 | `xml` | `string` | *required* | WFF v4 XML document |
-| `assets` | `Map<string, ArrayBuffer>` | `new Map()` | Image assets keyed by resource path |
+| `assets` | `Map<string, ArrayBuffer>` | `new Map()` | Images, fonts and string XML keyed by resource path |
 | `width` | `number` | from XML | Canvas width in pixels |
 | `height` | `number` | from XML | Canvas height in pixels |
 | `time` | `Date` | `new Date()` | Time to render |
 | `ambient` | `boolean` | `false` | Render in ambient (always-on) mode |
 | `configuration` | `Record<string, string \| number \| boolean>` | `{}` | User configuration overrides |
-| `animate` | `boolean` | `false` | Start a `requestAnimationFrame` loop |
+| `animate` | `boolean` | `false` | Start a serialized `requestAnimationFrame` loop |
+| `elapsedMs` | `number` | runtime elapsed | Deterministic animation timeline for snapshots |
+| `ambientTransitionDurationMs` | `number` | `1000` | Simulated device transition window for Variant duration/startOffset fractions |
+| `flavor` | `string` | XML default | Select a preset; configuration overrides take precedence |
+| `dataSources` | record or `(time: Date) => record` | `{}` | Inject device data using WFF source names; values are numbers, strings or booleans |
+| `locale`, `timeZone`, `calendar` | `string` | en-US, browser zone, gregory | Simulated device localization; calendar uses Intl identifiers |
+| `currency` | `string` | common locale currency or XXX | ISO 4217 currency for DecimalFormat currency patterns |
+| `is24Hour` | `boolean` | `true` | Device hour preference |
+| `strings` | `Record<string, string>` | asset strings | Override localized string resources |
+| `photos` | `Record<string, string[]>` | `{}` | Photo configuration id to image resource names in assets |
+| `visible` | `boolean` | `true` | Simulate visibility/pause and ON_VISIBLE events |
+| `random` | `() => number` | Math.random | Inject repeatable randomness in [0,1) |
+| `onLaunch` | `(target: string) => void` | none | Receive taps on Launch targets |
+| `onError` | `(error: unknown) => void` | none | Receive live rendering errors |
 
 #### `RenderResult`
 
 | Field | Type | Description |
 |---|---|---|
 | `metadata` | `Map<string, string>` | Metadata from the XML (e.g. `CLOCK_TYPE`, `PREVIEW_TIME`) |
-| `stop` | `() => void \| undefined` | Stops the animation loop (only present when `animate: true`) |
+| `stop` | `() => void` | Stops animation and detaches tap listeners |
+| `update` | `(changes: Partial<RenderOptions>) => Promise<void>` | Re-render while preserving transition/playback state |
+| `tap` | `(x: number, y: number) => Promise<void>` | Simulate a tap in output canvas pixels |
+| `accessibility` | `AccessibilityItem[]` | ScreenReader text, output bounds and Launch target |
 
-## Supported elements
+## Device simulation
 
-Shapes: `Arc`, `Ellipse`, `Line`, `Rectangle`, `RoundRectangle`
-Layout: `Group`, `Part`, `PartDraw`
-Text: `PartText`, `TimeText`, `Font`
-Clock: `AnalogClock`, `HourHand`, `MinuteHand`, `SecondHand`, `DigitalClock`
-Images: `PartImage`
-Conditions: `Condition`, `Compare`, `Default`
-Styling: `Fill`, `Stroke`, `LinearGradient`, `RadialGradient`, `SweepGradient`
-Animation: `Transform`, `Gyro`, `Variant`
-Masking: `Mask` with blend modes
+```js
+const preview = await renderWatchFace(canvas, {
+  xml, assets, timeZone: "UTC", elapsedMs: 0,
+  dataSources: { BATTERY_PERCENT: 75, STEP_COUNT: 6400, HEART_RATE: 82 },
+  photos: { album: ["photo1", "photo2"] },
+  onLaunch: target => console.log("launch", target),
+});
+await preview.update({ ambient: true, elapsedMs: 100 });
+await preview.update({ elapsedMs: 1100 });
+await preview.tap(100, 100);
+preview.stop();
+```
+
+Use `animate: true` for continuously advancing transitions, clocks and image playback.
+Use `elapsedMs` and await each update for deterministic snapshots. Device services
+are injected data and callbacks. Browser code does not open Wear OS applications.
+String assets can be supplied as `res/values/strings.xml` and
+`res/values-<language>/strings.xml`; `strings` overrides their values.
+
+## Coverage and verification
+
+The renderer implements non-complication v4 paths for rich text, shared transforms,
+references, configurations/flavors, drawing/masking, images/playback, interaction and
+localization. **Complications and their descendants are skipped.** Full native parity
+is not established; ICU and native rasterization limits are documented in the
+[element/attribute/version coverage matrix](docs/wff-v4-coverage.md).
+
+```sh
+pnpm build
+pnpm exec tsc --noEmit
+pnpm test:unit                 # Tests that do not require a browser
+pnpm test                      # Includes Playwright integration tests
+pnpm test:visual               # Requires independent native references; missing ones fail
+pnpm test:visual:export-snapshots # Browser debugging snapshots, not native references
+```
+
+GIF/WebP animation uses the browser ImageDecoder API. Custom fonts use FontFace;
+font-provider downloads require externally supplied assets. CI installs Chromium and
+runs compilation and integration tests. Native comparison remains a separate gate.
 
 ## License
 

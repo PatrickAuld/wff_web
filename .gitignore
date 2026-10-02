@@ -19,3 +19,5 @@ apk-template/local.properties
 
 # OS
 .DS_Store
+
+test/fixtures/*/browser-snapshots/

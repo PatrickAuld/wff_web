@@ -76,9 +76,9 @@ describe("renderWatchFace – Phase 1", () => {
     await page.close();
   });
 
-  it("defaults clipShape to no clipping when not specified", async () => {
+  it("defaults clipShape to CIRCLE when not specified", async () => {
     const page = await createPage();
-    // XML without clipShape — canvas should still be resized, no clip applied
+    // XML without clipShape uses the v4 default circular clipping.
     const xml = `<WatchFace width="200" height="200"><Scene/></WatchFace>`;
     const dims = await page.evaluate(async (xml) => {
       const canvas = document.getElementById("c") as HTMLCanvasElement;
@@ -87,11 +87,12 @@ describe("renderWatchFace – Phase 1", () => {
         time: new Date("2024-01-15T10:10:00"),
         ambient: false,
       });
-      return { width: canvas.width, height: canvas.height };
+      return { width: canvas.width, height: canvas.height, cornerAlpha: canvas.getContext("2d")!.getImageData(0, 0, 1, 1).data[3] };
     }, xml);
 
     expect(dims.width).toBe(200);
     expect(dims.height).toBe(200);
+    expect(dims.cornerAlpha).toBe(0);
     await page.close();
   });
 

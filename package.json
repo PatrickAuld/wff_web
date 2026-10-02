@@ -21,9 +21,11 @@
     "prepublishOnly": "pnpm build",
     "test": "vitest run",
     "test:visual": "vitest run --config vitest.visual.config.ts",
-    "test:visual:update-baselines": "tsx scripts/update-baselines.ts",
     "report": "tsx scripts/generate-report.ts",
-    "examples": "pnpm build && npx serve . -l 3000 --no-clipboard -C"
+    "examples": "pnpm build && npx serve . -l 3000 --no-clipboard -C",
+    "test:visual:export-snapshots": "tsx scripts/update-baselines.ts",
+    "test:visual:import-native": "tsx scripts/import-native-reference.ts",
+    "test:unit": "vitest run --config vitest.unit.config.ts"
   },
   "keywords": [
     "wearos",

@@ -625,8 +625,8 @@ describe("built-in functions", () => {
     expect(evaluateExpression("textLength('hello')", emptyCtx)).toBe(5);
   });
 
-  it("icuText returns pattern as-is", () => {
-    expect(evaluateExpression("icuText('EEE')", emptyCtx)).toBe("EEE");
+  it("icuText formats the injected timestamp", () => {
+    expect(evaluateExpression("icuText('EEE')", { sources: { UTC_TIMESTAMP: 1705320600000 }, timeZone: "UTC" })).toBe("Mon");
   });
 });
 

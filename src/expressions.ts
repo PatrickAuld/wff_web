@@ -1,3 +1,6 @@
+import { calendarMetrics } from "./calendar.js";
+import { formatDate, formatNumber } from "./format.js";
+import { extractColor } from "./color.js";
 /**
  * WFF Expression Engine
  *
@@ -51,6 +54,7 @@ type ASTNode =
   | { type: "number"; value: number }
   | { type: "string"; value: string }
   | { type: "source"; name: string }
+  | { type: "list"; items: ASTNode[] }
   | { type: "binary"; op: string; left: ASTNode; right: ASTNode }
   | { type: "unary"; op: string; operand: ASTNode }
   | {
@@ -67,6 +71,12 @@ type ASTNode =
 
 export interface ExpressionContext {
   sources: Record<string, number | string>;
+  locale?: string;
+  timeZone?: string;
+  calendar?: string;
+  currency?: string;
+  strings?: Record<string, string>;
+  random?: () => number;
 }
 
 // ---------------------------------------------------------------------------
@@ -93,6 +103,11 @@ function tokenize(input: string): Token[] {
       continue;
     }
 
+    if (input[i] === "#") {
+      const hex = input.slice(i).match(/^#[0-9a-fA-F]{8}(?![0-9a-fA-F])|^#[0-9a-fA-F]{6}(?![0-9a-fA-F])/);
+      if (!hex) throw new Error(`Invalid color at ${i}`);
+      tokens.push({ type: "string", value: hex[0] }); i += hex[0].length; continue;
+    }
     // String literal
     if (input[i] === '"' || input[i] === "'") {
       const quote = input[i];
@@ -107,6 +122,7 @@ function tokenize(input: string): Token[] {
         }
         i++;
       }
+      if (i === input.length) throw new Error("Unterminated string literal");
       i++; // consume closing quote
       tokens.push({ type: "string", value: str });
       continue;
@@ -309,12 +325,22 @@ class Parser {
   // Unary: ! - ~
   private parseUnary(): ASTNode {
     const tok = this.peek();
-    if (tok?.type === "!" || tok?.type === "-" || tok?.type === "~") {
+    if (tok?.type === "!" || tok?.type === "+" || tok?.type === "-" || tok?.type === "~") {
       this.consume();
       const operand = this.parseUnary();
       return { type: "unary", op: tok.type as string, operand };
     }
     return this.parsePrimary();
+  }
+
+  private parseArgument(name: string, index: number): ASTNode {
+    const first = this.parseTernary();
+    const list = (name === "extractColorFromColors" && index === 0) ||
+      (name === "extractColorFromWeightedColors" && index < 2);
+    if (!list) return first;
+    const items = [first];
+    while (this.peek() && this.peek()!.type !== "," && this.peek()!.type !== ")") items.push(this.parseTernary());
+    return items.length === 1 ? first : { type: "list", items };
   }
 
   // Primary: number, string, source ref, function call, parenthesized
@@ -340,15 +366,17 @@ class Parser {
     if (tok.type === "ident") {
       this.consume();
       const name = tok.value as string;
+      if (name === "true" || name === "TRUE") return { type: "number", value: 1 };
+      if (name === "false" || name === "FALSE") return { type: "number", value: 0 };
       // Check if this is a function call
       if (this.peek()?.type === "(") {
         this.consume(); // (
         const args: ASTNode[] = [];
         if (this.peek()?.type !== ")") {
-          args.push(this.parseTernary());
+          args.push(this.parseArgument(name, args.length));
           while (this.peek()?.type === ",") {
             this.consume(); // ,
-            args.push(this.parseTernary());
+            args.push(this.parseArgument(name, args.length));
           }
         }
         this.expect(")");
@@ -382,6 +410,13 @@ function numArg(args: (number | string)[], i: number, fname: string): number {
 }
 
 const BUILTINS: Record<string, BuiltinFn> = {
+  cbrt: a => Math.cbrt(Number(a[0])),
+  expm1: a => Math.expm1(Number(a[0])),
+  atan2: a => Math.atan2(Number(a[0]), Number(a[1])),
+  colorRgb: a => "#" + a.slice(0, 3).map(v => Math.round(Math.max(0, Math.min(255, Number(v)))).toString(16).padStart(2, "0")).join(""),
+  colorArgb: a => "#" + a.slice(0, 4).map(v => Math.round(Math.max(0, Math.min(255, Number(v)))).toString(16).padStart(2, "0")).join(""),
+  extractColorFromColors: a => extractColor(String(a[0]), undefined, Boolean(a[1]), Number(a[2])),
+  extractColorFromWeightedColors: a => extractColor(String(a[0]), String(a[1]), Boolean(a[2]), Number(a[3])),
   round: (a) => Math.round(numArg(a, 0, "round")),
   floor: (a) => Math.floor(numArg(a, 0, "floor")),
   ceil: (a) => Math.ceil(numArg(a, 0, "ceil")),
@@ -448,6 +483,7 @@ function evalNode(node: ASTNode, ctx: ExpressionContext): number | string {
       switch (node.op) {
         case "!":
           return Number(!operand) as number;
+        case "+": return Number(operand);
         case "-":
           return -(operand as number);
         case "~":
@@ -459,6 +495,8 @@ function evalNode(node: ASTNode, ctx: ExpressionContext): number | string {
 
     case "binary": {
       const left = evalNode(node.left, ctx);
+      if (node.op === "&&" && !left) return 0;
+      if (node.op === "||" && left) return 1;
       const right = evalNode(node.right, ctx);
       switch (node.op) {
         case "+":
@@ -472,9 +510,9 @@ function evalNode(node: ASTNode, ctx: ExpressionContext): number | string {
         case "*":
           return (left as number) * (right as number);
         case "/":
-          return (left as number) / (right as number);
+          return Number(right) === 0 ? 0 : Number(left) / Number(right);
         case "%":
-          return (left as number) % (right as number);
+          return Number(right) === 0 ? 0 : Number(left) % Number(right);
         case "==":
           return left == right ? 1 : 0;
         case "!=":
@@ -505,10 +543,15 @@ function evalNode(node: ASTNode, ctx: ExpressionContext): number | string {
       return cond ? evalNode(node.consequent, ctx) : evalNode(node.alternate, ctx);
     }
 
+    case "list": return node.items.map(item => evalNode(item, ctx)).join(" ");
+
     case "call": {
+      const args = node.args.map((a) => evalNode(a, ctx));
+      if (node.name === "icuText" || node.name === "icuBestText") return formatDate(String(args[0]), Number(args[1] ?? ctx.sources.UTC_TIMESTAMP ?? Date.now()), ctx, node.name === "icuBestText");
+      if (node.name === "numberFormat" && typeof args[0] === "string") return formatNumber(args[0], Number(args[1]), ctx.locale, ctx.currency);
+      if (node.name === "rand") return Number(args[0]) + (Number(args[1]) - Number(args[0])) * (ctx.random ?? Math.random)();
       const fn = BUILTINS[node.name];
       if (!fn) throw new Error(`Unknown function: ${node.name}`);
-      const args = node.args.map((a) => evalNode(a, ctx));
       return fn(args);
     }
   }
@@ -540,8 +583,8 @@ function zeroPad(value: number): string {
 }
 
 function getDayOfYear(date: Date): number {
-  const start = new Date(date.getFullYear(), 0, 0);
-  const diff = date.getTime() - start.getTime();
+  const start = Date.UTC(date.getFullYear(), 0, 0);
+  const diff = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) - start;
   const oneDay = 1000 * 60 * 60 * 24;
   return Math.floor(diff / oneDay);
 }
@@ -552,26 +595,27 @@ function getDayOfYear(date: Date): number {
 export function buildDataSources(
   time: Date,
   config?: Record<string, string | number | boolean>,
-  is24Hour?: boolean
+  is24Hour?: boolean,
+  utcFields = false
 ): ExpressionContext {
-  const millisecond = time.getMilliseconds(); // 0-999
-  const second = time.getSeconds(); // 0-59
-  const minute = time.getMinutes(); // 0-59
-  const hour0_23 = time.getHours(); // 0-23
+  const millisecond = (utcFields ? time.getUTCMilliseconds() : time.getMilliseconds()); // 0-999
+  const second = (utcFields ? time.getUTCSeconds() : time.getSeconds()); // 0-59
+  const minute = (utcFields ? time.getUTCMinutes() : time.getMinutes()); // 0-59
+  const hour0_23 = (utcFields ? time.getUTCHours() : time.getHours()); // 0-23
   const hour0_11 = hour0_23 % 12; // 0-11
   const hour1_12 = hour0_11 === 0 ? 12 : hour0_11; // 1-12
   const hour1_24 = hour0_23 === 0 ? 24 : hour0_23; // 1-24
-  const day = time.getDate(); // 1-31
+  const day = (utcFields ? time.getUTCDate() : time.getDate()); // 1-31
   // getDay() returns 0=Sunday..6=Saturday; Java Calendar: 1=Sunday..7=Saturday
-  const dayOfWeek = time.getDay() + 1; // 1-7
-  const dayOfYear = getDayOfYear(time); // 1-366
-  const month = time.getMonth() + 1; // 1-12
-  const year = time.getFullYear();
+  const dayOfWeek = (utcFields ? time.getUTCDay() : time.getDay()) + 1; // 1-7
+  const dayOfYear = utcFields ? Math.floor((Date.UTC(time.getUTCFullYear(), time.getUTCMonth(), time.getUTCDate()) - Date.UTC(time.getUTCFullYear(), 0, 0)) / 86400000) : getDayOfYear(time); // 1-366
+  const month = (utcFields ? time.getUTCMonth() : time.getMonth()) + 1; // 1-12
+  const year = (utcFields ? time.getUTCFullYear() : time.getFullYear());
   const ampmState = hour0_23 >= 12 ? 1 : 0;
   const is24HourMode = is24Hour !== false ? 1 : 0;
   const utcTimestamp = time.getTime();
   const secondsSinceEpoch = Math.floor(utcTimestamp / 1000);
-  const daysInMonth = new Date(year, time.getMonth() + 1, 0).getDate();
+  const daysInMonth = new Date(Date.UTC(year, (utcFields ? time.getUTCMonth() : time.getMonth()) + 1, 0)).getUTCDate();
 
   // Combined float sources
   const secondMillisecond = second + millisecond / 1000; // 0.0–59.999
@@ -684,15 +728,15 @@ export function buildDataSources(
     DAY_0_30_HOUR: day0_30Hour,
     DAY_OF_YEAR: dayOfYear,
     DAY_OF_WEEK: dayOfWeek,
-    DAY_OF_WEEK_F: dayNames[time.getDay()],
-    DAY_OF_WEEK_S: dayNamesShort[time.getDay()],
+    DAY_OF_WEEK_F: dayNames[(utcFields ? time.getUTCDay() : time.getDay())],
+    DAY_OF_WEEK_S: dayNamesShort[(utcFields ? time.getUTCDay() : time.getDay())],
     FIRST_DAY_OF_WEEK: 1, // default to Sunday; no browser API for locale first day
 
     // Months
     MONTH: month,
     MONTH_Z: zeroPad(month),
-    MONTH_F: monthNames[time.getMonth()],
-    MONTH_S: monthNamesShort[time.getMonth()],
+    MONTH_F: monthNames[(utcFields ? time.getUTCMonth() : time.getMonth())],
+    MONTH_S: monthNamesShort[(utcFields ? time.getUTCMonth() : time.getMonth())],
     DAYS_IN_MONTH: daysInMonth,
     MONTH_DAY: monthDay,
     MONTH_0_11: month0_11,
@@ -740,4 +784,68 @@ function isDST(date: Date): boolean {
   const jul = new Date(date.getFullYear(), 6, 1).getTimezoneOffset();
   const stdOffset = Math.max(jan, jul);
   return date.getTimezoneOffset() < stdOffset;
+}
+
+export function localizedDataSources(time: Date, config: Record<string, string | number | boolean> = {}, is24Hour = true, locale = "en-US", timeZone?: string, calendar = "gregory"): ExpressionContext {
+  const zone = timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: zone, year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric", second: "numeric", hourCycle: "h23" }).formatToParts(time);
+  const get = (type: string) => Number(parts.find(p => p.type === type)?.value ?? 0);
+  const wall = new Date(Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute"), get("second"), time.getMilliseconds()));
+  const result = buildDataSources(wall, config, is24Hour, true);
+  const utc = time.getTime();
+  Object.assign(result.sources, { UTC_TIMESTAMP: utc, SECONDS_SINCE_EPOCH: Math.floor(utc / 1000), MINUTES_SINCE_EPOCH: Math.floor(utc / 60000), HOURS_SINCE_EPOCH: Math.floor(utc / 3600000), TIMEZONE_ID: zone, LANGUAGE_LOCALE_NAME: locale.replace(/-/g, "_") });
+  const formatted = (options: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat(locale, { timeZone: zone, calendar, ...options }).format(time);
+  result.sources.DAY_OF_WEEK_F = formatted({ weekday: "long" }); result.sources.DAY_OF_WEEK_S = formatted({ weekday: "short" });
+  result.sources.MONTH_F = formatted({ month: "long" }); result.sources.MONTH_S = formatted({ month: "short" });
+  const field = (type: string, options: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-US", { timeZone: zone, calendar, ...options }).formatToParts(time).find(p => p.type === type)?.value;
+  const calendarYear = Number(field("year", { year: "numeric" }));
+  const calendarMonth = Number(field("month", { month: "numeric" }));
+  const calendarDay = Number(field("day", { day: "numeric" }));
+  if (Number.isFinite(calendarYear)) result.sources.YEAR = calendarYear;
+  if (Number.isFinite(calendarMonth)) result.sources.MONTH = calendarMonth;
+  if (Number.isFinite(calendarDay)) result.sources.DAY = calendarDay;
+  for (const [key, length] of [["TIMEZONE", "long"], ["TIMEZONE_ABB", "short"]] as const) result.sources[key] = field("timeZoneName", { timeZoneName: length }) ?? "";
+  const wallUtc = Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute"), get("second"), time.getMilliseconds());
+  const offset = Math.round((wallUtc - utc) / 60000);
+  const offsetAt = (date: Date) => {
+    const p = new Intl.DateTimeFormat("en-US", { timeZone: zone, timeZoneName: "longOffset" }).formatToParts(date).find(p => p.type === "timeZoneName")?.value ?? "GMT";
+    const m = p.match(/GMT([+-])(\d\d):(\d\d)/); return m ? (m[1] === "-" ? -1 : 1) * (Number(m[2]) * 60 + Number(m[3])) : 0;
+  };
+  const standard = Math.min(offsetAt(new Date(Date.UTC(get("year"), 0, 1))), offsetAt(new Date(Date.UTC(get("year"), 6, 1))));
+  const offsetText = (o: number) => `${o < 0 ? "-" : "+"}${Math.floor(Math.abs(o) / 60)}${o % 60 ? ":" + zeroPad(Math.abs(o) % 60) : ""}`;
+  Object.assign(result.sources, { TIMEZONE_OFFSET: offsetText(standard), TIMEZONE_OFFSET_MINUTES: standard, TIMEZONE_OFFSET_DST: offsetText(offset), TIMEZONE_OFFSET_MINUTES_DST: offset, IS_DAYLIGHT_SAVING_TIME: offset !== standard ? 1 : 0 });
+  const localeInfo = new Intl.Locale(locale) as Intl.Locale & { getWeekInfo?: () => { firstDay: number; minimalDays: number }; weekInfo?: { firstDay: number; minimalDays: number } };
+  const week = localeInfo.getWeekInfo?.() ?? localeInfo.weekInfo ?? { firstDay: 7, minimalDays: 1 };
+  const region = new Intl.Locale(locale).maximize().region ?? "US";
+  const minimalDays = week.minimalDays ?? ("AD AN AT AX BE BG CH CZ DE DK EE ES FI FJ FO FR GB GF GG GI GP GR IE IM IS IT JE LI LT LU MC MQ NL NO PL PT RE RU SE SJ SK SM VA".split(" ").includes(region) ? 4 : 1);
+  const firstDay = week.firstDay % 7;
+  result.sources.FIRST_DAY_OF_WEEK = firstDay + 1;
+  function weekStart(year: number, month: number) {
+    const start = Date.UTC(year, month, 1), weekday = new Date(start).getUTCDay();
+    const before = (weekday - firstDay + 7) % 7;
+    return start - before * 86400000 + (7 - before < minimalDays ? 7 * 86400000 : 0);
+  }
+  const today = Date.UTC(get("year"), get("month") - 1, get("day"));
+  let yearStart = weekStart(get("year"), 0);
+  if (today < yearStart) yearStart = weekStart(get("year") - 1, 0);
+  else if (today >= weekStart(get("year") + 1, 0)) yearStart = weekStart(get("year") + 1, 0);
+  result.sources.WEEK_IN_YEAR = 1 + Math.floor((today - yearStart) / 604800000);
+  result.sources.WEEK_IN_MONTH = Math.max(0, 1 + Math.floor((today - weekStart(get("year"), get("month") - 1)) / 604800000));
+  if (calendar !== "gregory" && calendar !== "iso8601") {
+    const metrics = calendarMetrics(today, calendar);
+    const { year, month, day, daysInMonth } = metrics;
+    const hour = Number(result.sources.HOUR_0_23);
+    Object.assign(result.sources, { YEAR: year, YEAR_S: year % 100, MONTH: month, MONTH_Z: zeroPad(month), MONTH_0_11: month - 1,
+      DAY: day, DAY_Z: zeroPad(day), DAY_0_30: day - 1, DAY_OF_YEAR: metrics.dayOfYear, DAYS_IN_MONTH: daysInMonth,
+      DAY_HOUR: day + hour / 24, DAY_0_30_HOUR: day - 1 + hour / 24,
+      MONTH_DAY: month + (day - 1) / daysInMonth, MONTH_0_11_DAY: month - 1 + (day - 1) / daysInMonth,
+      YEAR_MONTH: year + (month - 1) / 12, YEAR_MONTH_DAY: year + (month - 1 + (day - 1) / daysInMonth) / 12 });
+    const startWeek = (start: number) => { const before = (new Date(start).getUTCDay() - firstDay + 7) % 7; return start - before * 86400000 + (7 - before < minimalDays ? 604800000 : 0); };
+    let start = startWeek(metrics.yearStart);
+    if (today < start) start = startWeek(calendarMetrics(metrics.yearStart - 86400000, calendar).yearStart);
+    else if (today >= startWeek(metrics.nextYearStart)) start = startWeek(metrics.nextYearStart);
+    result.sources.WEEK_IN_YEAR = 1 + Math.floor((today - start) / 604800000);
+    result.sources.WEEK_IN_MONTH = Math.max(0, 1 + Math.floor((today - startWeek(metrics.monthStart)) / 604800000));
+  }
+  return { ...result, locale, timeZone: zone, calendar };
 }

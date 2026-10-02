@@ -1,0 +1,10 @@
+<WatchFace width="450" height="450" clipShape="RECTANGLE" cornerRadiusX="60" cornerRadiusY="40">
+  <Scene backgroundColor="#000000">
+    <PartDraw x="0" y="90" width="300" height="60"><Transform target="x" value="[REFERENCE.origin]+30"/><Rectangle x="0" y="0" width="250" height="50"><Fill color="#000000"><Transform target="color" value="colorRgb(255,80,0)"/></Fill></Rectangle></PartDraw>
+    <PartDraw x="60" y="170" width="330" height="200"><Reference name="origin" source="x" defaultValue="0"/>
+      <Line startX="0" startY="20" endX="330" endY="20"><WeightedStroke colors="#FF0000 #00FF00 #0000FF" weights="1 2 1" thickness="18" discreteGap="8" cap="ROUND"/></Line>
+      <Arc centerX="165" centerY="120" width="170" height="130" startAngle="0" endAngle="300"><WeightedStroke colors="#FF0000 #00FF00 #0000FF" weights="1 2" thickness="15" interpolate="TRUE"/></Arc>
+    </PartDraw>
+    <PartText x="50" y="370" width="350" height="35"><Text><Font size="22"><Template>%s<Parameter expression="extractColorFromWeightedColors(#97d700 #FCE300 #ff8200,3 3 2,false,0.1)"/></Template></Font></Text></PartText>
+  </Scene>
+</WatchFace>

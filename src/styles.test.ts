@@ -77,13 +77,13 @@ function createContext() {
     linearGradient,
     radialGradient,
     conicGradient,
-    fill() {
+    fill(this: { fillCalls: number }) {
       this.fillCalls += 1;
     },
-    stroke() {
+    stroke(this: { strokeCalls: number }) {
       this.strokeCalls += 1;
     },
-    setLineDash(values: number[]) {
+    setLineDash(this: { lineDash: number[] }, values: number[]) {
       this.lineDash = values;
     },
     createLinearGradient() {

@@ -1,4 +1,4 @@
-import { applyFill, applyStroke } from "./styles.js";
+import { applyFill, applyStroke, renderWeightedStroke } from "./styles.js";
 import { renderGroup } from "./layout.js";
 import { renderCondition } from "./conditions.js";
 import { applyVariants } from "./variants.js";
@@ -7,6 +7,8 @@ import { renderPartText, renderDigitalClock } from "./text.js";
 import { renderPartImage } from "./images.js";
 import { renderAnalogClock } from "./clock.js";
 import { applyTransforms } from "./animation.js";
+import { compositeLayer } from "./compositing.js";
+import { applyGeometry } from "./attributes.js";
 import type { ExpressionContext } from "./expressions.js";
 
 /**
@@ -32,6 +34,14 @@ export interface RenderContext {
   ambient: boolean;
   assets: Map<string, ArrayBuffer>;
   elapsedMs: number;
+  frameId?: number;
+  contexts?: WeakMap<Element, ExpressionContext>;
+  events?: Map<string, number>;
+  random?: () => number;
+  photos?: Record<string, string[]>;
+  imageStates?: Map<string, import("./images.js").ImageState>;
+  basis?: DOMMatrix;
+  register?: (ctx: CanvasRenderingContext2D, el: Element, renderCtx: RenderContext) => void;
 }
 
 export async function renderElement(
@@ -39,64 +49,53 @@ export async function renderElement(
   el: Element,
   renderCtx: RenderContext
 ): Promise<void> {
-  const tag = el.tagName;
-
-  switch (tag) {
-    case "Group":
-    case "PartDraw":
-      await renderGroup(ctx, el, renderElement, renderCtx);
-      break;
-    case "Condition":
-      await renderCondition(ctx, el, renderElement, renderCtx);
-      break;
-    case "Arc":
-      applyVariants(el, renderCtx.ambient);
-      applyTransforms(el, renderCtx.expressionCtx, renderCtx.elapsedMs);
-      resolveColorExprs(el, renderCtx.expressionCtx);
-      applyBlendMode(ctx, el);
-      renderArc(ctx, el);
-      break;
-    case "Rectangle":
-      applyVariants(el, renderCtx.ambient);
-      applyTransforms(el, renderCtx.expressionCtx, renderCtx.elapsedMs);
-      resolveColorExprs(el, renderCtx.expressionCtx);
-      applyBlendMode(ctx, el);
-      renderRectangle(ctx, el);
-      break;
-    case "RoundRectangle":
-      applyVariants(el, renderCtx.ambient);
-      applyTransforms(el, renderCtx.expressionCtx, renderCtx.elapsedMs);
-      resolveColorExprs(el, renderCtx.expressionCtx);
-      applyBlendMode(ctx, el);
-      renderRoundRectangle(ctx, el);
-      break;
-    case "Ellipse":
-      applyVariants(el, renderCtx.ambient);
-      applyTransforms(el, renderCtx.expressionCtx, renderCtx.elapsedMs);
-      resolveColorExprs(el, renderCtx.expressionCtx);
-      applyBlendMode(ctx, el);
-      renderEllipse(ctx, el);
-      break;
-    case "Line":
-      applyVariants(el, renderCtx.ambient);
-      applyTransforms(el, renderCtx.expressionCtx, renderCtx.elapsedMs);
-      resolveColorExprs(el, renderCtx.expressionCtx);
-      applyBlendMode(ctx, el);
-      renderLine(ctx, el);
-      break;
-    case "PartText":
-      renderPartText(ctx, el, renderCtx);
-      break;
-    case "DigitalClock":
-      renderDigitalClock(ctx, el, renderCtx);
-      break;
-    case "PartImage":
-      await renderPartImage(ctx, el, renderCtx, renderCtx.assets);
-      break;
-    case "AnalogClock":
-      await renderAnalogClock(ctx, el, renderElement, renderCtx);
-      break;
+  const local = renderCtx.contexts?.get(el);
+  if (local) renderCtx = { ...renderCtx, expressionCtx: local };
+  if (!renderCtx.contexts) {
+    applyVariants(el, renderCtx.ambient);
+    applyTransforms(el, renderCtx.expressionCtx, renderCtx.elapsedMs);
+    resolveColorExprs(el, renderCtx.expressionCtx);
   }
+  if (Number(el.getAttribute("alpha") ?? 255) <= 0) return;
+  const savedContext = ctx;
+  ctx.save();
+  try {
+    const tag = el.tagName;
+    const container = ["Group", "PartDraw", "Scene", "PartText", "PartImage", "PartAnimatedImage", "DigitalClock", "AnalogClock"].includes(tag);
+    if (container) {
+      applyGeometry(ctx, el);
+      renderCtx.register?.(ctx, el, renderCtx);
+    }
+    applyBlendMode(ctx, el);
+    const tint = el.getAttribute("tintColor"), blend = el.getAttribute("blendMode");
+    const layered = container && (tint !== null || blend !== null);
+    const destination = ctx;
+    if (layered) {
+      const w = Number(el.getAttribute("width") ?? ctx.canvas.width), h = Number(el.getAttribute("height") ?? ctx.canvas.height);
+      if (w <= 0 || h <= 0) return;
+      const layer = new OffscreenCanvas(Math.ceil(w), Math.ceil(h));
+      renderCtx = { ...renderCtx, basis: renderCtx.basis ? renderCtx.basis.multiply(ctx.getTransform()) : ctx.getTransform() };
+      ctx = layer.getContext("2d")! as unknown as CanvasRenderingContext2D;
+    }
+    switch (tag) {
+      case "Scene": case "Group": case "PartDraw": await renderGroup(ctx, el, renderElement, renderCtx); break;
+      case "Condition": await renderCondition(ctx, el, renderElement, renderCtx); break;
+      case "ListConfiguration": case "BooleanConfiguration":
+        for (const option of el.children) for (const child of option.children) await renderElement(ctx, child, renderCtx);
+        break;
+      case "Arc": if (!renderWeightedStroke(ctx, el)) renderArc(ctx, el); break;
+      case "Rectangle": renderRectangle(ctx, el); break;
+      case "RoundRectangle": renderRoundRectangle(ctx, el); break;
+      case "Ellipse": renderEllipse(ctx, el); break;
+      case "Line": if (!renderWeightedStroke(ctx, el)) renderLine(ctx, el); break;
+      case "PartText": await renderPartText(ctx, el, renderCtx); break;
+      case "DigitalClock": await renderDigitalClock(ctx, el, renderCtx); break;
+      case "PartImage": case "PartAnimatedImage": await renderPartImage(ctx, el, renderCtx, renderCtx.assets); break;
+      case "AnalogClock": await renderAnalogClock(ctx, el, renderElement, renderCtx); break;
+    }
+    if (layered) compositeLayer(destination, ctx.canvas as unknown as OffscreenCanvas, tint, blend);
+    ctx = destination;
+  } finally { savedContext.restore(); }
 }
 
 function renderRectangle(

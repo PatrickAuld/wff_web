@@ -1,136 +1,57 @@
-import { applyVariants } from "./variants.js";
-import { parseColor } from "./color.js";
+import { applyGeometry, number } from "./attributes.js";
 import { getOrDecodeImage } from "./images.js";
+import { compositeLayer } from "./compositing.js";
 import type { RenderContext } from "./shapes.js";
-import type { ExpressionContext } from "./expressions.js";
 
-export async function renderAnalogClock(
-  ctx: CanvasRenderingContext2D,
-  el: Element,
-  renderChild: (ctx: CanvasRenderingContext2D, el: Element, renderCtx: RenderContext) => Promise<void>,
-  renderCtx: RenderContext
-): Promise<void> {
-  applyVariants(el, renderCtx.ambient);
+type RenderChild = (ctx: CanvasRenderingContext2D, el: Element, renderCtx: RenderContext) => Promise<void>;
 
-  const x = parseFloat(el.getAttribute("x") ?? "0");
-  const y = parseFloat(el.getAttribute("y") ?? "0");
-  const alpha = parseFloat(el.getAttribute("alpha") ?? "255");
-  if (alpha <= 0) return;
+export function secondHandAngle(el: Element, second: number, millisecond: number, ambient: boolean): number {
+  const sweep = el.querySelector(":scope > Sweep"), tick = el.querySelector(":scope > Tick");
+  const fraction = millisecond / 1000;
+  if (!ambient && sweep) {
+    const frequency = sweep.getAttribute("frequency") === "SYNC_TO_DEVICE" ? 1000 : number(sweep, "frequency", 15);
+    return (second + Math.floor(fraction * frequency) / frequency) * 6;
+  }
+  if (!ambient && tick) {
+    const t = Math.min(1, fraction / Math.max(.001, number(tick, "duration", .2)));
+    const strength = number(tick, "strength", 1), p = t - 1;
+    return (second + (1 + strength * 1.70158) * p * p * p + strength * 1.70158 * p * p) * 6;
+  }
+  return second * 6;
+}
 
-  // Get current time from expression context
-  const sources = renderCtx.expressionCtx.sources;
-  const hour = (sources.HOUR_0_23 as number) ?? 0;
-  const minute = (sources.MINUTE as number) ?? 0;
-  const second = (sources.SECOND as number) ?? 0;
-
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.globalAlpha *= alpha / 255;
-
+export async function renderAnalogClock(ctx: CanvasRenderingContext2D, el: Element, renderChild: RenderChild, renderCtx: RenderContext): Promise<void> {
   for (const child of el.children) {
     const tag = child.tagName;
-    if (tag === "HourHand" || tag === "MinuteHand" || tag === "SecondHand") {
-      let angle: number;
-      if (tag === "HourHand") {
-        angle = ((hour % 12) + minute / 60) * 30;
-      } else if (tag === "MinuteHand") {
-        angle = (minute + second / 60) * 6;
-      } else {
-        angle = second * 6;
-      }
-      await renderHand(ctx, child, angle, renderChild, renderCtx);
-    } else if (tag !== "Variant") {
-      await renderChild(ctx, child, renderCtx);
-    }
+    if (["HourHand", "MinuteHand", "SecondHand"].includes(tag)) {
+      const local = renderCtx.contexts?.get(child) ?? renderCtx.expressionCtx;
+      const sources = local.sources;
+      const hour = Number(sources.HOUR_0_23 ?? 0), minute = Number(sources.MINUTE ?? 0), second = Number(sources.SECOND ?? 0);
+      const angle = tag === "HourHand" ? ((hour % 12) + minute / 60) * 30 : tag === "MinuteHand" ? (minute + second / 60) * 6 : secondHandAngle(child, second, Number(sources.MILLISECOND ?? 0), renderCtx.ambient);
+      await renderHand(ctx, child, angle, renderChild, { ...renderCtx, expressionCtx: local });
+    } else await renderChild(ctx, child, renderCtx);
   }
-
-  ctx.restore();
 }
 
-/** Resolve a single [SOURCE_NAME] expression ref in an attribute value. */
-function resolveExprRef(value: string | null, expressionCtx: ExpressionContext): string | null {
-  if (!value?.includes("[")) return value;
-  return value.replace(/\[([^\]]+)\]/g, (_, name) => {
-    const val = expressionCtx.sources[name];
-    return val !== undefined ? String(val) : "#000000";
-  });
-}
-
-/**
- * Draw an ImageBitmap with an optional tintColor applied.
- * tintColor replaces the non-transparent pixels' RGB while preserving
- * the image's alpha channel — consistent with Android's tinting behavior.
- */
-async function drawTintedImage(
-  ctx: CanvasRenderingContext2D,
-  bitmap: ImageBitmap,
-  w: number,
-  h: number,
-  tintColor: string | null
-): Promise<void> {
-  if (!tintColor) {
-    ctx.drawImage(bitmap, 0, 0, w, h);
-    return;
-  }
-
-  // Composite the tint color over the image's alpha mask on an offscreen canvas
-  const offscreen = new OffscreenCanvas(w, h);
-  const offCtx = offscreen.getContext("2d")!;
-  offCtx.drawImage(bitmap, 0, 0, w, h);
-  offCtx.globalCompositeOperation = "source-in";
-  offCtx.fillStyle = parseColor(tintColor);
-  offCtx.fillRect(0, 0, w, h);
-  ctx.drawImage(offscreen, 0, 0);
-}
-
-async function renderHand(
-  ctx: CanvasRenderingContext2D,
-  el: Element,
-  angle: number,
-  renderChild: (ctx: CanvasRenderingContext2D, el: Element, renderCtx: RenderContext) => Promise<void>,
-  renderCtx: RenderContext
-): Promise<void> {
-  applyVariants(el, renderCtx.ambient);
-
-  const alpha = parseFloat(el.getAttribute("alpha") ?? "255");
-  if (alpha <= 0) return; // Skip fully transparent hands (e.g. shadow hands in ambient)
-
-  const x = parseFloat(el.getAttribute("x") ?? "0");
-  const y = parseFloat(el.getAttribute("y") ?? "0");
-  const w = parseFloat(el.getAttribute("width") ?? "0");
-  const h = parseFloat(el.getAttribute("height") ?? "0");
-  const pivotX = parseFloat(el.getAttribute("pivotX") ?? "0.5");
-  const pivotY = parseFloat(el.getAttribute("pivotY") ?? "0.5");
-
-  // Resolve tintColor expression ref (e.g. [CONFIGURATION.themeColor.0])
-  const tintColor = resolveExprRef(el.getAttribute("tintColor"), renderCtx.expressionCtx);
-
+async function renderHand(ctx: CanvasRenderingContext2D, el: Element, angle: number, renderChild: RenderChild, renderCtx: RenderContext): Promise<void> {
+  if (number(el, "alpha", 255) <= 0) return;
+  const w = number(el, "width"), h = number(el, "height");
   ctx.save();
-  ctx.translate(x, y);
-  ctx.globalAlpha *= alpha / 255;
-
-  // Pivot-based rotation
-  const px = pivotX * w;
-  const py = pivotY * h;
-  ctx.translate(px, py);
-  ctx.rotate((angle * Math.PI) / 180);
-  ctx.translate(-px, -py);
-
-  // Draw resource image with optional tint
-  const resource = el.getAttribute("resource");
-  if (resource) {
-    const bitmap = await getOrDecodeImage(resource, renderCtx.assets);
-    if (bitmap) {
-      await drawTintedImage(ctx, bitmap, w, h, tintColor);
-    }
-  }
-
-  // Render PartDraw children (skip Variant elements)
-  for (const child of el.children) {
-    if (child.tagName !== "Variant") {
-      await renderChild(ctx, child, renderCtx);
-    }
-  }
-
-  ctx.restore();
+  try {
+    applyGeometry(ctx, el);
+    const px = number(el, "pivotX", .5) * w, py = number(el, "pivotY", .5) * h;
+    ctx.translate(px, py); ctx.rotate(angle * Math.PI / 180); ctx.translate(-px, -py);
+    const draw = async (target: CanvasRenderingContext2D, local: RenderContext) => {
+      const resource = el.getAttribute("resource");
+      if (resource) { const bitmap = await getOrDecodeImage(resource, local.assets); if (bitmap) target.drawImage(bitmap, 0, 0, w, h); }
+      for (const child of el.children) await renderChild(target, child, local);
+    };
+    const tint = el.getAttribute("tintColor");
+    if (tint && w > 0 && h > 0) {
+      const layer = new OffscreenCanvas(Math.ceil(w), Math.ceil(h));
+      const basis = renderCtx.basis ? renderCtx.basis.multiply(ctx.getTransform()) : ctx.getTransform();
+      await draw(layer.getContext("2d")! as unknown as CanvasRenderingContext2D, { ...renderCtx, basis });
+      compositeLayer(ctx, layer, tint, null);
+    } else await draw(ctx, renderCtx);
+  } finally { ctx.restore(); }
 }
