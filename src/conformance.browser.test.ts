@@ -158,6 +158,19 @@ describe("non-complication v4 browser regressions", () => {
     });
     expect(values.first).toEqual([255,0,0,255]); expect(values.tapped).toEqual([0,255,0,255]); expect(values.two).toEqual([0,255,0,255]); expect(values.three).toEqual([255,0,0,255]); await p.close();
   });
+  it("rebases an animated fixed clock when its time is changed", async () => {
+    const p = await page();
+    const text = await p.evaluate(async () => {
+      const canvas=document.querySelector("canvas")!;
+      const xml='<WatchFace width="100" height="100" clipShape="NONE"><Scene><DigitalClock width="100" height="100"><TimeText format="ss" hourFormat="24"><Font size="20"/></TimeText></DigitalClock></Scene></WatchFace>';
+      let now=0; const original=performance.now.bind(performance); Object.defineProperty(performance,"now",{value:()=>now,configurable:true});
+      const texts:string[]=[]; const fill=CanvasRenderingContext2D.prototype.fillText;
+      CanvasRenderingContext2D.prototype.fillText=function(text:string,x:number,y:number){texts.push(text);fill.call(this,text,x,y);};
+      try {const r=await(window as any).renderWatchFace(canvas,{xml,time:new Date("2024-01-15T10:10:00Z"),timeZone:"UTC",animate:true});now=5000;await r.update({time:new Date("2024-01-15T10:20:00Z")});r.stop();return texts.at(-1);}
+      finally {Object.defineProperty(performance,"now",{value:original,configurable:true});}
+    });
+    expect(text).toBe("00");await p.close();
+  });
   it("skips complications and all their descendants", async () => {
     const p = await page(); const draws = await render(p, wrap(`<ComplicationSlot>${rect("#ff0000")}<PartText width="200" height="200"><Text><Font size="30">Hidden</Font></Text></PartText></ComplicationSlot>`));
     expect(draws).toEqual([]); expect(await nonBlack(p)).toBe(0); await p.close();

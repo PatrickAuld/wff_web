@@ -93,7 +93,7 @@ export async function renderWatchFace(canvas: HTMLCanvasElement, initial: Render
   let hitClip: { path: Path2D; ctx: CanvasRenderingContext2D; scaleX: number; scaleY: number } | undefined;
   const result: RenderResult = { metadata: new Map(), accessibility: [], update, tap, stop };
   let wasVisible = options.visible !== false;
-  let hiddenAt: number | undefined, pausedMs = 0, frameId = 0;
+  let hiddenAt: number | undefined, pausedMs = 0, frameId = 0, timeAnchorElapsed = 0;
   async function draw(): Promise<void> {
     if (stopped) return;
     frameId++;
@@ -120,7 +120,7 @@ export async function renderWatchFace(canvas: HTMLCanvasElement, initial: Render
       return;
     }
     const elapsed = options.elapsedMs ?? realElapsed - pausedMs;
-    const time = options.time ? new Date(options.time.getTime() + (options.animate && options.elapsedMs === undefined ? elapsed : 0)) : new Date();
+    const time = options.time ? new Date(options.time.getTime() + (options.animate && options.elapsedMs === undefined ? Math.max(0, elapsed - timeAnchorElapsed) : 0)) : new Date();
     const config = parseConfigurations(doc, options);
     const expressionCtx = localizedDataSources(time, config, options.is24Hour, options.locale, options.timeZone, options.calendar);
     expressionCtx.currency = options.currency; expressionCtx.strings = stringsFromAssets(options); expressionCtx.random = options.random;
@@ -167,6 +167,7 @@ export async function renderWatchFace(canvas: HTMLCanvasElement, initial: Render
   function schedule(): Promise<void> { queue = queue.catch(() => {}).then(draw); return queue; }
   function update(changes: Partial<RenderOptions>): Promise<void> {
     if (changes.xml !== undefined && changes.xml !== options.xml) { states.clear(); imageStates.clear(); events.clear(); }
+    if (changes.time !== undefined) timeAnchorElapsed = changes.elapsedMs ?? options.elapsedMs ?? performance.now() - start - pausedMs;
     const wasAnimating = options.animate;
     options = { ...options, ...changes };
     if (changes.animate === false) cancelAnimationFrame(raf);
