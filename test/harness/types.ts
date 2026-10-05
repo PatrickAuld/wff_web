@@ -1,5 +1,6 @@
 /** Configuration for a single test fixture */
 export interface FixtureConfig {
+  wffVersion?: 4 | 5;
   name: string;
   description: string;
   watchface?: string; // relative path to XML, defaults to "watchface.xml"

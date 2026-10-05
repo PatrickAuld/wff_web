@@ -1,8 +1,9 @@
 import { applyAttributes, boolean, number, resolveValue } from "./attributes.js";
 import { localizedDataSources, evaluateExpression, type ExpressionContext } from "./expressions.js";
 import type { Transition } from "./animation.js";
+import { complicationContext, selectedComplication, type ComplicationPreview } from "./complications.js";
 
-export function prepareScene(scene: Element, base: ExpressionContext, ambient: boolean, elapsed: number, states: Map<string, Transition>, ambientTransitionDurationMs = 1000): WeakMap<Element, ExpressionContext> {
+export function prepareScene(scene: Element, base: ExpressionContext, ambient: boolean, elapsed: number, states: Map<string, Transition>, ambientTransitionDurationMs = 1000, complications?: ComplicationPreview): WeakMap<Element, ExpressionContext> {
   const contexts = new WeakMap<Element, ExpressionContext>();
   const pending = new Set<Element>(), done = new Set<Element>();
   const providers = new Map<string, Element>();
@@ -50,7 +51,8 @@ export function prepareScene(scene: Element, base: ExpressionContext, ambient: b
   }
   function visible(el: Element): boolean {
     if (el === scene) return true;
-    if (el.tagName === "ComplicationSlot" || el.tagName === "Complication") return false;
+    if (el.tagName === "ComplicationSlot" && !selectedComplication(el, complications)) return false;
+    if (el.tagName === "Complication" && (el.parentElement?.tagName !== "ComplicationSlot" || selectedComplication(el.parentElement, complications)?.type !== el.getAttribute("type"))) return false;
     const parent = el.parentElement;
     if (!parent || !scene.contains(parent)) return false;
     if (!visible(parent)) return false;
@@ -64,7 +66,11 @@ export function prepareScene(scene: Element, base: ExpressionContext, ambient: b
     pending.add(el);
     const parent = el.parentElement;
     if (parent && scene.contains(parent)) prepare(parent);
-    const inherited = parent ? contexts.get(parent) ?? base : base;
+    let inherited = parent ? contexts.get(parent) ?? base : base;
+    if (el.tagName === "ComplicationSlot") {
+      const data = selectedComplication(el, complications);
+      if (data) inherited = complicationContext(inherited, data);
+    }
     const localization = el.querySelector(":scope > Localization");
     const locales = localization?.getAttribute("locales")?.split(/\s+/).map(l => l.replace(/_/g, "-"));
     const zone = localization?.getAttribute("timeZone");
@@ -89,7 +95,10 @@ export function prepareScene(scene: Element, base: ExpressionContext, ambient: b
       const selected = branch(el);
       for (const child of Array.from(el.children)) if (child !== selected) child.remove();
       if (selected) for (const child of selected.children) walk(child);
-    } else if (!el.tagName.startsWith("Complication")) for (const child of el.children) walk(child);
+    } else for (const child of Array.from(el.children)) {
+      if (["ComplicationSlot", "Complication"].includes(child.tagName) && !visible(child)) child.remove();
+      else walk(child);
+    }
   }
   walk(scene);
   return contexts;

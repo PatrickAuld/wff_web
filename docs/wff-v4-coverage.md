@@ -1,8 +1,8 @@
 # Non-complication WFF v4 coverage
 
 This matrix describes implemented paths, not certified Wear OS parity. The target is
-WFF version 4. Complication elements and their descendants are intentionally skipped.
-No v5 compatibility claim is made. The earlier implementation design's exclusions
+WFF version 4. Complication elements without injected slot data are skipped.
+The v5 additions and optional slot preview support are described in [v5 coverage](wff-v5-coverage.md). The earlier implementation design's exclusions
 are superseded by this implementation for the non-complication paths below.
 
 `U` means executable unit regression coverage. `B` means a browser integration test
@@ -46,8 +46,8 @@ row can be considered conformant. Native references are currently absent.
 | `Gyro` | expression-based x/y/angle offsets, scale multipliers, alpha factor; injected accelerometer values | v4 | U/B gyro |
 | `Launch` | transformed tap hit testing; root clip gate; onLaunch callback for system/custom/deep-link targets | v4 | B callback and output scaling |
 | `ScreenReader`, `Localization` | stringId parameters, ARIA label and transformed accessibility bounds; locale/timezone/calendar inheritance; string resources | v4 | B accessibility; U locale/calendar/timezone |
-| All complication elements, slots, providers and data templates | intentionally skipped, including descendants | excluded | B exclusion; complication native fixture excluded |
-| v5-specific joins, line spacing, vertical alignment, minSize, nested settings/dynamic complications | outside compatibility target | excluded | No v5 parity assertion |
+| Complication slots/data templates | optional injected previews added with v5; live providers remain external | see v5 | B v5 slot scoping/selection/blending |
+| v5-specific additions | implemented; see [v5 coverage](wff-v5-coverage.md) | v5 | U/B v5 regressions; native parity pending |
 
 ## Browser and ICU limits
 

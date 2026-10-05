@@ -3,7 +3,7 @@ import type { LoadedFixture, Scenario } from "./types.js";
 
 export interface NativeReference {
   renderer: "wear-os";
-  wffVersion: 4;
+  wffVersion: 4 | 5;
   device: string;
   buildFingerprint: string;
   capturedAt: string;
@@ -21,7 +21,8 @@ export function fixtureFingerprint(fixture: LoadedFixture): string {
   return hash.digest("hex");
 }
 export function verifyReference(manifest: NativeReference, fixture: LoadedFixture, scenario: Scenario, width: number, height: number): void {
-  if (manifest.renderer !== "wear-os" || manifest.wffVersion !== 4) throw new Error("Baseline must originate from the native Wear OS v4 renderer");
+  const version = fixture.config.wffVersion ?? 4;
+  if (manifest.renderer !== "wear-os" || manifest.wffVersion !== version) throw new Error(`Baseline must originate from the native Wear OS v${version} renderer`);
   if (!manifest.device || !manifest.buildFingerprint || !Number.isFinite(Date.parse(manifest.capturedAt))) throw new Error("Native reference lacks capture provenance");
   if (manifest.fixtureSha256 !== fixtureFingerprint(fixture)) throw new Error("Native baseline does not match fixture XML/assets");
   if (manifest.scenario !== scenario.name || manifest.time !== scenario.time || manifest.ambient !== scenario.ambient || manifest.timeZone !== (scenario.timeZone ?? "UTC")) throw new Error("Native baseline scenario does not match");

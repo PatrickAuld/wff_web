@@ -25,6 +25,7 @@ export function applyStroke(ctx: CanvasRenderingContext2D, el: Element): void {
   if (cap === "ROUND") ctx.lineCap = "round";
   else if (cap === "SQUARE") ctx.lineCap = "square";
   else ctx.lineCap = "butt";
+  ctx.lineJoin = strokeJoin(strokeEl);
 
   const dashAttr = strokeEl.getAttribute("dashIntervals");
   if (dashAttr) {
@@ -163,6 +164,7 @@ export function renderWeightedStroke(ctx: CanvasRenderingContext2D, el: Element)
   ctx.save();
   ctx.lineWidth = Number(stroke.getAttribute("thickness") ?? 1);
   ctx.lineCap = (stroke.getAttribute("cap") ?? "BUTT").toLowerCase() as CanvasLineCap;
+  ctx.lineJoin = strokeJoin(stroke);
   ctx.setLineDash([]);
 
   const direction = el.getAttribute("direction") === "COUNTER_CLOCKWISE" ? -1 : 1;
@@ -196,4 +198,9 @@ export function renderWeightedStroke(ctx: CanvasRenderingContext2D, el: Element)
   }
   ctx.restore();
   return true;
+}
+
+function strokeJoin(el: Element): CanvasLineJoin {
+  const join = el.getAttribute("join");
+  return join === "ROUND" ? "round" : join === "BEVEL" ? "bevel" : "miter";
 }

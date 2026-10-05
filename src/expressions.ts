@@ -814,7 +814,7 @@ export function localizedDataSources(time: Date, config: Record<string, string |
   const standard = Math.min(offsetAt(new Date(Date.UTC(get("year"), 0, 1))), offsetAt(new Date(Date.UTC(get("year"), 6, 1))));
   const offsetText = (o: number) => `${o < 0 ? "-" : "+"}${Math.floor(Math.abs(o) / 60)}${o % 60 ? ":" + zeroPad(Math.abs(o) % 60) : ""}`;
   Object.assign(result.sources, { TIMEZONE_OFFSET: offsetText(standard), TIMEZONE_OFFSET_MINUTES: standard, TIMEZONE_OFFSET_DST: offsetText(offset), TIMEZONE_OFFSET_MINUTES_DST: offset, IS_DAYLIGHT_SAVING_TIME: offset !== standard ? 1 : 0 });
-  const localeInfo = new Intl.Locale(locale) as Intl.Locale & { getWeekInfo?: () => { firstDay: number; minimalDays: number }; weekInfo?: { firstDay: number; minimalDays: number } };
+  const localeInfo = new Intl.Locale(locale) as unknown as Omit<Intl.Locale, "getWeekInfo" | "weekInfo"> & { getWeekInfo?: () => { firstDay: number; minimalDays?: number }; weekInfo?: { firstDay: number; minimalDays?: number } };
   const week = localeInfo.getWeekInfo?.() ?? localeInfo.weekInfo ?? { firstDay: 7, minimalDays: 1 };
   const region = new Intl.Locale(locale).maximize().region ?? "US";
   const minimalDays = week.minimalDays ?? ("AD AN AT AX BE BG CH CZ DE DK EE ES FI FJ FO FR GB GF GG GI GP GR IE IM IS IT JE LI LT LU MC MQ NL NO PL PT RE RU SE SJ SK SM VA".split(" ").includes(region) ? 4 : 1);

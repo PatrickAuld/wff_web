@@ -1,0 +1,22 @@
+<WatchFace width="454" height="454" clipShape="CIRCLE">
+  <Scene backgroundColor="#101820">
+    <PartText x="50" y="90" width="354" height="60">
+      <Text verticalAlign="CENTER_ON_BASELINE"><Font family="sans-serif" size="24" color="#91C8DD">v5 </Font><Font family="sans-serif" size="42" color="#FFFFFF">Ag</Font></Text>
+    </PartText>
+    <PartText x="100" y="160" width="254" height="100">
+      <Text verticalAlign="TOP" maxLines="3" lineSpacing="10" isAutoSize="TRUE" ellipsis="TRUE"><Font family="sans-serif" size="28" minSize="14">Shared baselines
+Spaced lines</Font></Text>
+    </PartText>
+    <PartText x="0" y="0" width="454" height="454">
+      <TextCircular centerX="227" centerY="227" width="380" height="300" startAngle="240" endAngle="120" direction="COUNTER_CLOCKWISE" verticalAlign="CENTER_ON_BASELINE" isAutoSize="TRUE" ellipsis="TRUE"><Font family="sans-serif" size="28" minSize="10">Circular text sizes to the available elliptical arc</Font></TextCircular>
+    </PartText>
+    <Group x="140" y="280" width="180" height="80" blendMode="SCREEN">
+      <Variant mode="AMBIENT" target="alpha" value="128" duration="0"/>
+      <PartDraw width="180" height="80">
+        <Rectangle x="10" y="10" width="40" height="40"><Stroke color="#91C8DD" thickness="12" join="MITER"/></Rectangle>
+        <Rectangle x="65" y="10" width="40" height="40"><Stroke color="#91C8DD" thickness="12" join="ROUND"/></Rectangle>
+        <Rectangle x="120" y="10" width="40" height="40"><Stroke color="#91C8DD" thickness="12" join="BEVEL"/></Rectangle>
+      </PartDraw>
+    </Group>
+  </Scene>
+</WatchFace>

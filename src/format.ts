@@ -17,7 +17,7 @@ export function formatDate(pattern: string, timestamp: number, ctx: ExpressionCo
   const wall = new Date(Date.UTC(field("year"), field("month") - 1, field("day")));
   let dayOfYear = Math.floor((wall.getTime() - Date.UTC(field("year"), 0, 0)) / 86400000);
   if (ctx.calendar && ctx.calendar !== "gregory" && ctx.calendar !== "iso8601") dayOfYear = calendarMetrics(wall.getTime(), ctx.calendar).dayOfYear;
-  const localeInfo = new Intl.Locale(locale) as Intl.Locale & { getWeekInfo?: () => { firstDay: number; minimalDays: number }; weekInfo?: { firstDay: number; minimalDays: number } };
+  const localeInfo = new Intl.Locale(locale) as unknown as Omit<Intl.Locale, "getWeekInfo" | "weekInfo"> & { getWeekInfo?: () => { firstDay: number; minimalDays?: number }; weekInfo?: { firstDay: number; minimalDays?: number } };
   const weekInfo = localeInfo.getWeekInfo?.() ?? localeInfo.weekInfo ?? { firstDay: 7, minimalDays: 1 };
   const firstDay = weekInfo.firstDay % 7;
   const region = localeInfo.maximize().region ?? "US";

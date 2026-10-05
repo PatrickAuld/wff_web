@@ -4,7 +4,7 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 ## Project Overview
 
-WFF Web is a web-based renderer for WearOS Watch Face Format (WFF) v4 XML. It converts XML watch face definitions into HTML Canvas renderings that match the appearance of native WearOS watch faces. The core library is currently a stub — implementation follows the phased plan in ROADMAP.md.
+WFF Web is a web-based renderer for WearOS Watch Face Format (WFF) v4/v5 XML. It converts XML watch face definitions into HTML Canvas renderings that match the appearance of native WearOS watch faces. The core renderer is implemented; v4/v5 coverage and remaining native-parity limits are documented in docs/wff-v4-coverage.md and docs/wff-v5-coverage.md.
 
 ## Build & Test Commands
 

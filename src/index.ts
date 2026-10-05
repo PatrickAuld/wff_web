@@ -1,12 +1,16 @@
 import { renderElement, type RenderContext } from "./shapes.js";
 import { localizedDataSources } from "./expressions.js";
-import { boolean, number } from "./attributes.js";
+import { number } from "./attributes.js";
 import { prepareScene } from "./scene.js";
 import { loadFonts, template } from "./text.js";
 import { formatTemplate } from "./format.js";
 import { parseColor } from "./color.js";
 import type { Transition } from "./animation.js";
 import type { ImageState } from "./images.js";
+import { prepareConfigurations, type UserSetting } from "./configuration.js";
+import type { ComplicationData } from "./complications.js";
+export type { UserSetting, ConfigurationOption } from "./configuration.js";
+export type { ComplicationData, ComplicationType } from "./complications.js";
 
 export interface RenderOptions {
   xml: string;
@@ -17,6 +21,7 @@ export interface RenderOptions {
   ambient?: boolean;
   configuration?: Record<string, string | number | boolean>;
   flavor?: string;
+  complications?: Record<number, ComplicationData>;
   animate?: boolean;
   elapsedMs?: number;
   /** Preview device ambient transition window; Variant duration/startOffset are fractions of it. */
@@ -38,6 +43,8 @@ export interface AccessibilityItem { name: string; text: string; bounds: { x: nu
 export interface RenderResult {
   metadata: Map<string, string>;
   accessibility: AccessibilityItem[];
+  settings: UserSetting[];
+  activeComplicationSlotIds: number[];
   update: (changes: Partial<RenderOptions>) => Promise<void>;
   tap: (x: number, y: number) => Promise<void>;
   stop: () => void;
@@ -45,32 +52,6 @@ export interface RenderResult {
 const activeCanvases = new WeakMap<HTMLCanvasElement, RenderResult>();
 interface Hit { key: string; inverse: DOMMatrix; width: number; height: number; launch?: string }
 
-function parseConfigurations(doc: Document, options: RenderOptions): Record<string, string | number | boolean> {
-  const result: Record<string, string | number | boolean> = {};
-  const user = doc.querySelector("UserConfigurations");
-  if (!user) return { ...options.configuration };
-  const flavors = user.querySelector(":scope > Flavors");
-  const flavorId = options.flavor ?? flavors?.getAttribute("defaultFlavor") ?? flavors?.getAttribute("defaultValue");
-  const flavor = Array.from(flavors?.children ?? []).find(f => f.getAttribute("id") === flavorId);
-  if (options.flavor && !flavor) throw new Error(`Unknown flavor: ${options.flavor}`);
-  const preset: Record<string, string> = {};
-  for (const conf of flavor?.querySelectorAll(":scope > Configuration") ?? []) preset[conf.getAttribute("id") ?? ""] = conf.getAttribute("optionId") ?? "";
-  for (const child of user.children) {
-    const id = child.getAttribute("id"); if (!id) continue;
-    const selected = options.configuration?.[id] ?? preset[id] ?? child.getAttribute("defaultValue");
-    if (child.tagName === "BooleanConfiguration") result[id] = boolean(String(selected ?? "TRUE")) ? 1 : 0;
-    else if (child.tagName === "ColorConfiguration" || child.tagName === "ListConfiguration") {
-      const optionTag = child.tagName === "ColorConfiguration" ? "ColorOption" : "ListOption";
-      const entries = Array.from(child.children).filter(c => c.tagName === optionTag);
-      const option = entries.find(c => c.getAttribute("id") === String(selected)) ?? (selected == null ? entries[0] : undefined);
-      if (!option && entries.length) throw new Error(`Unknown option ${selected} for ${id}`);
-      result[id] = option?.getAttribute("id") ?? String(selected ?? "0");
-      if (child.tagName === "ColorConfiguration") (option?.getAttribute("colors") ?? "").trim().split(/\s+/).filter(Boolean).forEach((color, i) => { result[`${id}.${i}`] = color; });
-    } else if (child.tagName === "PhotosConfiguration") result[id] = id;
-  }
-  for (const [key, value] of Object.entries(options.configuration ?? {})) if (!(key in result)) result[key] = value;
-  return result;
-}
 function stringsFromAssets(options: RenderOptions): Record<string, string> {
   const result: Record<string, string> = {};
   const language = (options.locale ?? "en-US").split("-")[0];
@@ -91,7 +72,7 @@ export async function renderWatchFace(canvas: HTMLCanvasElement, initial: Render
   const states = new Map<string, Transition>(), imageStates = new Map<string, ImageState>(), events = new Map<string, number>();
   const hits: Hit[] = [];
   let hitClip: { path: Path2D; ctx: CanvasRenderingContext2D; scaleX: number; scaleY: number } | undefined;
-  const result: RenderResult = { metadata: new Map(), accessibility: [], update, tap, stop };
+  const result: RenderResult = { metadata: new Map(), accessibility: [], settings: [], activeComplicationSlotIds: [], update, tap, stop };
   let wasVisible = options.visible !== false;
   let hiddenAt: number | undefined, pausedMs = 0, frameId = 0, timeAnchorElapsed = 0;
   async function draw(): Promise<void> {
@@ -105,6 +86,8 @@ export async function renderWatchFace(canvas: HTMLCanvasElement, initial: Render
     if (canvas.width !== width) canvas.width = width;
     if (canvas.height !== height) canvas.height = height;
     const ctx = canvas.getContext("2d");
+    const config = prepareConfigurations(doc, options.configuration, options.flavor);
+    result.settings = config.settings; result.activeComplicationSlotIds = config.activeComplicationSlotIds;
     result.metadata.clear(); for (const el of root.querySelectorAll("Metadata")) result.metadata.set(el.getAttribute("key") ?? "", el.getAttribute("value") ?? "");
     hits.length = 0; hitClip = undefined; result.accessibility.length = 0;
     const realElapsed = options.elapsedMs ?? performance.now() - start;
@@ -121,8 +104,7 @@ export async function renderWatchFace(canvas: HTMLCanvasElement, initial: Render
     }
     const elapsed = options.elapsedMs ?? realElapsed - pausedMs;
     const time = options.time ? new Date(options.time.getTime() + (options.animate && options.elapsedMs === undefined ? Math.max(0, elapsed - timeAnchorElapsed) : 0)) : new Date();
-    const config = parseConfigurations(doc, options);
-    const expressionCtx = localizedDataSources(time, config, options.is24Hour, options.locale, options.timeZone, options.calendar);
+    const expressionCtx = localizedDataSources(time, config.values, options.is24Hour, options.locale, options.timeZone, options.calendar);
     expressionCtx.currency = options.currency; expressionCtx.strings = stringsFromAssets(options); expressionCtx.random = options.random;
     const injected = typeof options.dataSources === "function" ? options.dataSources(time) : options.dataSources;
     for (const [key, value] of Object.entries(injected ?? {})) expressionCtx.sources[key] = typeof value === "boolean" ? Number(value) : value;
@@ -130,7 +112,7 @@ export async function renderWatchFace(canvas: HTMLCanvasElement, initial: Render
     if (!scene) return;
     if (!scene.hasAttribute("width")) scene.setAttribute("width", String(xmlWidth));
     if (!scene.hasAttribute("height")) scene.setAttribute("height", String(xmlHeight));
-    const contexts = prepareScene(scene, expressionCtx, options.ambient ?? false, elapsed, states, options.ambientTransitionDurationMs);
+    const contexts = prepareScene(scene, expressionCtx, options.ambient ?? false, elapsed, states, options.ambientTransitionDurationMs, { activeSlotIds: new Set(config.activeComplicationSlotIds), data: options.complications ?? {} });
     await loadFonts(doc, options.assets ?? new Map());
     ctx.resetTransform(); ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.save();
     try {

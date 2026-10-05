@@ -8,11 +8,11 @@ import type { ExpressionContext } from "./expressions.js";
 const WEIGHTS: Record<string, number> = { THIN: 100, ULTRA_LIGHT: 200, EXTRA_LIGHT: 200, LIGHT: 300, NORMAL: 400, MEDIUM: 500, SEMI_BOLD: 600, BOLD: 700, ULTRA_BOLD: 800, EXTRA_BOLD: 800, BLACK: 900, EXTRA_BLACK: 1000 };
 const STRETCH: Record<string, string> = { ULTRA_CONDENSED: "ultra-condensed", EXTRA_CONDENSED: "extra-condensed", CONDENSED: "condensed", SEMI_CONDENSED: "semi-condensed", NORMAL: "normal", SEMI_EXPANDED: "semi-expanded", EXPANDED: "expanded", EXTRA_EXPANDED: "extra-expanded", ULTRA_EXPANDED: "ultra-expanded" };
 interface FontSpec {
-  family: string; stretch: string; size: number; color: string; weight: number; style: string; letterSpacing: number;
+  family: string; stretch: string; size: number; minSize: number; color: string; weight: number; style: string; letterSpacing: number;
   underline?: boolean; strikeThrough?: boolean; outline?: Element; shadow?: Element; glow?: Element; bitmap?: Element; bitmapTint?: string;
 }
 interface Run { text?: string; image?: Element; spec: FontSpec }
-interface Glyph { text: string; width: number; height: number; run: Run; image?: Element }
+interface Glyph { text: string; width: number; height: number; ascent: number; descent: number; run: Run; image?: Element }
 const loadedFonts = new WeakMap<ArrayBuffer, Map<string, Promise<void>>>();
 
 export async function loadFonts(doc: Document, assets: Map<string, ArrayBuffer>): Promise<void> {
@@ -51,6 +51,7 @@ function parseFont(el: Element | null, parent?: FontSpec): FontSpec {
     family: family === "SYNC_TO_DEVICE" ? "sans-serif" : family,
     stretch: STRETCH[el?.getAttribute("width") ?? ""] ?? parent?.stretch ?? "normal",
     size: el ? number(el, "size", parent?.size ?? 16) : 16,
+    minSize: Math.max(0, el ? number(el, "minSize", parent?.minSize ?? 12) : 12),
     color: el?.getAttribute("color") ?? parent?.color ?? "#FFFFFF",
     weight: WEIGHTS[el?.getAttribute("weight") ?? ""] ?? parent?.weight ?? 400,
     style: el?.getAttribute("slant") === "ITALIC" ? "italic" : parent?.style ?? "normal",
@@ -115,7 +116,8 @@ function glyphs(ctx: CanvasRenderingContext2D, runs: Run[], scale: number): Glyp
     applyFont(ctx, run.spec, scale);
     if (run.image) {
       const width = number(run.image, "width") - number(run.image, "overlapLeft") - number(run.image, "overlapRight");
-      result.push({ run, image: run.image, text: "", width: width * scale, height: number(run.image, "height") * scale });
+      const height = number(run.image, "height") * scale;
+      result.push({ run, image: run.image, text: "", width: width * scale, height, ascent: height, descent: 0 });
       continue;
     }
     const mappings = Array.from(run.spec.bitmap?.children ?? []).sort((a, b) => (b.getAttribute("name")?.length ?? 0) - (a.getAttribute("name")?.length ?? 0));
@@ -124,10 +126,12 @@ function glyphs(ctx: CanvasRenderingContext2D, runs: Run[], scale: number): Glyp
       const mapping = mappings.find(m => text.startsWith(m.getAttribute("name") ?? "\0"));
       const char = mapping?.getAttribute("name") ?? Array.from(new Intl.Segmenter().segment(text))[0].segment;
       const size = run.spec.size * scale;
-      if (mapping) result.push({ run, image: mapping, text: char, width: number(mapping, "width") * size / number(mapping, "height", 1), height: size });
+      if (mapping) result.push({ run, image: mapping, text: char, width: number(mapping, "width") * size / number(mapping, "height", 1), height: size, ascent: size, descent: 0 });
       else {
         const width = char === "\n" ? 0 : ctx.measureText(prefix + char).width - ctx.measureText(prefix).width;
-        result.push({ run, text: char, width, height: size * 1.2 });
+        ctx.textBaseline = "alphabetic";
+        const metrics = ctx.measureText(char);
+        result.push({ run, text: char, width, height: size * 1.2, ascent: Math.max(0, metrics.actualBoundingBoxAscent), descent: Math.max(0, metrics.actualBoundingBoxDescent) });
       }
       prefix = char === "\n" ? "" : prefix + char;
       text = text.slice(char.length);
@@ -153,17 +157,17 @@ function layout(units: Glyph[], width: number): Glyph[][] {
   return lines;
 }
 
-async function drawGlyph(ctx: CanvasRenderingContext2D, glyph: Glyph, x: number, y: number, scale: number, renderCtx: RenderContext): Promise<void> {
+async function drawGlyph(ctx: CanvasRenderingContext2D, glyph: Glyph, x: number, y: number, scale: number, renderCtx: RenderContext, baseline = false): Promise<void> {
   const spec = glyph.run.spec;
   ctx.save();
-  try { applyFont(ctx, spec, scale); ctx.textAlign = "left"; ctx.textBaseline = "middle";
+  try { applyFont(ctx, spec, scale); ctx.textAlign = "left"; ctx.textBaseline = baseline ? "alphabetic" : "middle";
   if (glyph.image) {
     const image = glyph.image;
     const source = image.getAttribute("source");
     const resource = source ? String(resolveValue(source, renderCtx.expressionCtx)) : image.getAttribute("resource") ?? "";
     const bitmap = await getOrDecodeImage(resource, renderCtx.assets);
     const width = image.tagName === "InlineImage" ? number(image, "width") * scale : glyph.width;
-    if (bitmap) drawImage(ctx, bitmap, x - number(image, "overlapLeft") * scale, y - glyph.height / 2, width, glyph.height, image.getAttribute("color") ?? (spec.bitmap ? spec.bitmapTint ?? null : null));
+    if (bitmap) drawImage(ctx, bitmap, x - number(image, "overlapLeft") * scale, y - (baseline ? glyph.ascent : glyph.height / 2), width, glyph.height, image.getAttribute("color") ?? (spec.bitmap ? spec.bitmapTint ?? null : null));
   } else {
     const shadow = spec.shadow ?? spec.glow;
     if (shadow) { ctx.shadowColor = parseColor(shadow.getAttribute("color")); ctx.shadowBlur = number(shadow, "radius", spec.glow ? 8 : 2) * scale; ctx.shadowOffsetX = spec.shadow ? number(shadow, "offsetX", 2) * scale : 0; ctx.shadowOffsetY = spec.shadow ? number(shadow, "offsetY", 2) * scale : 0; }
@@ -172,7 +176,8 @@ async function drawGlyph(ctx: CanvasRenderingContext2D, glyph: Glyph, x: number,
     if (spec.underline || spec.strikeThrough) {
       ctx.shadowColor = "transparent"; ctx.strokeStyle = parseColor(spec.color); ctx.lineWidth = Math.max(1, spec.size * scale / 14);
       for (const offset of [spec.underline ? spec.size * .42 : undefined, spec.strikeThrough ? 0 : undefined]) if (offset !== undefined) {
-        ctx.beginPath(); ctx.moveTo(x, y + offset * scale); ctx.lineTo(x + glyph.width, y + offset * scale); ctx.stroke();
+        const decorationY = y + (offset - (baseline ? spec.size * .35 : 0)) * scale;
+        ctx.beginPath(); ctx.moveTo(x, decorationY); ctx.lineTo(x + glyph.width, decorationY); ctx.stroke();
       }
     }
   }
@@ -182,7 +187,7 @@ function merged(line: Glyph[]): Glyph[] {
   const result: Glyph[] = [];
   for (const glyph of line) {
     const last = result.at(-1);
-    if (last && !last.image && !glyph.image && last.run === glyph.run) { last.text += glyph.text; last.width += glyph.width; }
+    if (last && !last.image && !glyph.image && last.run === glyph.run) { last.text += glyph.text; last.width += glyph.width; last.ascent = Math.max(last.ascent, glyph.ascent); last.descent = Math.max(last.descent, glyph.descent); }
     else result.push({ ...glyph });
   }
   return result;
@@ -201,20 +206,36 @@ async function renderRuns(ctx: CanvasRenderingContext2D, el: Element, runs: Run[
   const rx = number(el, "width", width) / 2, ry = number(el, "height", height) / 2;
   const start = number(el, "startAngle"), raw = (number(el, "endAngle", 360) - start) * sign;
   const sweep = Math.abs(raw) >= 360 ? 360 : ((raw % 360) + 360) % 360;
-  const arcLength = sweep / 360 * Math.PI * (3 * (rx + ry) - Math.sqrt((3 * rx + ry) * (rx + 3 * ry)));
-  const available = circular ? arcLength : width;
+  const count = Math.max(1, Math.ceil(sweep * 4));
+  const samples = [0]; let previous = { x: rx * Math.sin(start * Math.PI / 180), y: -ry * Math.cos(start * Math.PI / 180) };
+  if (circular) for (let i = 1; i <= count; i++) {
+    const angle = (start + sign * sweep * i / count) * Math.PI / 180;
+    const point = { x: rx * Math.sin(angle), y: -ry * Math.cos(angle) };
+    samples.push(samples.at(-1)! + Math.hypot(point.x - previous.x, point.y - previous.y)); previous = point;
+  }
+  const available = circular ? samples.at(-1)! : width;
+  const verticalAlign = el.getAttribute("verticalAlign");
+  const baseline = verticalAlign !== null;
+  const spacing = circular ? 0 : Math.max(-5, number(el, "lineSpacing"));
   let scale = 1, units = glyphs(ctx, runs, scale);
   const maxLines = number(el, "maxLines", 1);
-  const fit = () => { const lines = circular ? [units] : maxLines === 1 ? layout(units, Infinity) : layout(units, available); return { lines, height: lines.reduce((sum, line) => sum + Math.max(0, ...line.map(u => u.height)), 0) }; };
+  const lineMetrics = (line: Glyph[]) => {
+    const ascent = Math.max(0, ...line.map(g => g.ascent)), descent = Math.max(0, ...line.map(g => g.descent));
+    const height = baseline && ascent + descent > 0 ? ascent + descent : Math.max(runs[0].spec.size * scale * 1.2, ...line.map(g => g.height));
+    return { ascent, descent, height };
+  };
+  const blockHeight = (lines: Glyph[][]) => lines.reduce((sum, line) => sum + lineMetrics(line).height, 0) + Math.max(0, lines.length - 1) * spacing;
+  const fit = () => { const lines = circular ? [units] : maxLines === 1 ? layout(units, Infinity) : layout(units, available); return { lines, height: blockHeight(lines) }; };
   let result = fit();
   if (boolean(el.getAttribute("isAutoSize"))) {
-    const minimum = Math.min(1, Math.max(...runs.map(r => 12 / r.spec.size)));
+    const minimum = Math.min(1, Math.max(0, ...runs.filter(r => !r.image && r.spec.size > 0).map(r => r.spec.minSize / r.spec.size)));
     while (scale > minimum && (result.lines.some(l => l.reduce((a, g) => a + g.width, 0) > available) || (!circular && (result.height > height || (maxLines > 0 && result.lines.length > maxLines))))) {
       scale = Math.max(minimum, scale - .02); units = glyphs(ctx, runs, scale); result = fit();
     }
   }
   let lines = result.lines;
-  const visibleLines = maxLines > 0 ? maxLines : Math.max(1, Math.floor(height / Math.max(1, ...units.map(u => u.height))));
+  let visibleLines = maxLines > 0 ? maxLines : result.lines.length;
+  if (maxLines <= 0) while (visibleLines > 1 && blockHeight(result.lines.slice(0, visibleLines)) > height) visibleLines--;
   const truncated = lines.length > visibleLines;
   if (!circular) lines = lines.slice(0, visibleLines);
   if (boolean(el.getAttribute("ellipsis"))) {
@@ -234,10 +255,8 @@ async function renderRuns(ctx: CanvasRenderingContext2D, el: Element, runs: Run[
   ctx.direction = rtl ? "rtl" : "ltr";
   if (circular) {
     const line = lines[0], length = line.reduce((a, g) => a + g.width, 0);
-    // Map distance to ellipse parameter using a sampled arc-length table.
-    const count = Math.max(1, Math.ceil(sweep * 4));
-    const samples = [0]; let previous = { x: rx * Math.sin(start * Math.PI / 180), y: -ry * Math.cos(start * Math.PI / 180) };
-    for (let i = 1; i <= count; i++) { const angle = (start + sign * sweep * i / count) * Math.PI / 180; const point = { x: rx * Math.sin(angle), y: -ry * Math.cos(angle) }; samples.push(samples.at(-1)! + Math.hypot(point.x - previous.x, point.y - previous.y)); previous = point; }
+    const metrics = lineMetrics(line);
+    const offset = verticalAlign === "TOP" ? metrics.ascent : verticalAlign === "BOTTOM" ? -metrics.descent : verticalAlign === "CENTER" ? (metrics.ascent - metrics.descent) / 2 : 0;
     let distance = Math.max(0, samples.at(-1)! - length) * factor;
     for (const glyph of line) {
       const center = distance + glyph.width / 2;
@@ -246,17 +265,17 @@ async function renderRuns(ctx: CanvasRenderingContext2D, el: Element, runs: Run[
       const angle = (start + sign * sweep * (i - 1 + fraction) / count) * Math.PI / 180;
       ctx.save(); ctx.translate(number(el, "centerX", width / 2) + rx * Math.sin(angle), number(el, "centerY", height / 2) - ry * Math.cos(angle));
       ctx.rotate(Math.atan2(sign * ry * Math.sin(angle), sign * rx * Math.cos(angle)));
-      await drawGlyph(ctx, glyph, -glyph.width / 2, 0, scale, renderCtx); ctx.restore(); distance += glyph.width;
+      await drawGlyph(ctx, glyph, -glyph.width / 2, offset, scale, renderCtx, baseline); ctx.restore(); distance += glyph.width;
     }
   } else {
     ctx.beginPath(); ctx.rect(0, 0, width, height); ctx.clip();
-    const heights = lines.map(l => Math.max(runs[0].spec.size * scale * 1.2, ...l.map(g => g.height)));
-    let y = (height - heights.reduce((a, b) => a + b, 0)) / 2;
+    const metrics = lines.map(lineMetrics), total = blockHeight(lines);
+    let y = verticalAlign === "TOP" ? 0 : verticalAlign === "BOTTOM" ? height - total : verticalAlign === "CENTER_ON_BASELINE" ? height / 2 - metrics[0].ascent : (height - total) / 2;
     for (let i = 0; i < lines.length; i++) {
       const line = merged(lines[i]); let x = (width - line.reduce((a, g) => a + g.width, 0)) * factor;
-      y += heights[i] / 2;
-      for (const glyph of line) { await drawGlyph(ctx, glyph, x, y, scale, renderCtx); x += glyph.width; }
-      y += heights[i] / 2;
+      const lineY = y + (baseline ? metrics[i].ascent : metrics[i].height / 2);
+      for (const glyph of line) { await drawGlyph(ctx, glyph, x, lineY, scale, renderCtx, baseline); x += glyph.width; }
+      y += metrics[i].height + spacing;
     }
   }
   } finally { ctx.restore(); }

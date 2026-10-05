@@ -61,7 +61,8 @@ export async function renderElement(
   ctx.save();
   try {
     const tag = el.tagName;
-    const container = ["Group", "PartDraw", "Scene", "PartText", "PartImage", "PartAnimatedImage", "DigitalClock", "AnalogClock"].includes(tag);
+    const container = ["Group", "PartDraw", "Scene", "PartText", "PartImage", "PartAnimatedImage", "DigitalClock", "AnalogClock", "ComplicationSlot"].includes(tag);
+    if (tag === "ComplicationSlot" && !renderCtx.contexts?.has(el)) return;
     if (container) {
       applyGeometry(ctx, el);
       renderCtx.register?.(ctx, el, renderCtx);
@@ -78,7 +79,7 @@ export async function renderElement(
       ctx = layer.getContext("2d")! as unknown as CanvasRenderingContext2D;
     }
     switch (tag) {
-      case "Scene": case "Group": case "PartDraw": await renderGroup(ctx, el, renderElement, renderCtx); break;
+      case "Scene": case "Group": case "PartDraw": case "ComplicationSlot": case "Complication": await renderGroup(ctx, el, renderElement, renderCtx); break;
       case "Condition": await renderCondition(ctx, el, renderElement, renderCtx); break;
       case "ListConfiguration": case "BooleanConfiguration":
         for (const option of el.children) for (const child of option.children) await renderElement(ctx, child, renderCtx);

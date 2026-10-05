@@ -1,6 +1,6 @@
 # wff-web
 
-Render [WearOS Watch Face Format (WFF) v4](https://developer.android.com/training/wearables/wff) XML in the browser using HTML Canvas.
+Render [WearOS Watch Face Format (WFF) v4/v5](https://developer.android.com/training/wearables/wff) XML in the browser using HTML Canvas.
 
 ## Install
 
@@ -109,12 +109,13 @@ Renders a WFF XML watch face onto the provided `HTMLCanvasElement`.
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `xml` | `string` | *required* | WFF v4 XML document |
+| `xml` | `string` | *required* | WFF v4/v5 XML document |
 | `assets` | `Map<string, ArrayBuffer>` | `new Map()` | Images, fonts and string XML keyed by resource path |
 | `width` | `number` | from XML | Canvas width in pixels |
 | `height` | `number` | from XML | Canvas height in pixels |
 | `time` | `Date` | `new Date()` | Time to render |
 | `ambient` | `boolean` | `false` | Render in ambient (always-on) mode |
+| `complications` | `Record<number, ComplicationData>` | `{}` | Inject a type and slot-local data keyed by slotId |
 | `configuration` | `Record<string, string \| number \| boolean>` | `{}` | User configuration overrides |
 | `animate` | `boolean` | `false` | Start a serialized `requestAnimationFrame` loop |
 | `elapsedMs` | `number` | runtime elapsed | Deterministic animation timeline for snapshots |
@@ -139,6 +140,8 @@ Renders a WFF XML watch face onto the provided `HTMLCanvasElement`.
 | `stop` | `() => void` | Stops animation and detaches tap listeners |
 | `update` | `(changes: Partial<RenderOptions>) => Promise<void>` | Re-render while preserving transition/playback state |
 | `tap` | `(x: number, y: number) => Promise<void>` | Simulate a tap in output canvas pixels |
+| `settings` | `UserSetting[]` | Declared values, available options and active hierarchy state |
+| `activeComplicationSlotIds` | `number[]` | Enabled slots after ListOption selection; independent of injected data |
 | `accessibility` | `AccessibilityItem[]` | ScreenReader text, output bounds and Launch target |
 
 ## Device simulation
@@ -162,13 +165,43 @@ are injected data and callbacks. Browser code does not open Wear OS applications
 String assets can be supplied as `res/values/strings.xml` and
 `res/values-<language>/strings.xml`; `strings` overrides their values.
 
+## WFF v5 settings and complications
+
+`childSettingIds` creates an editor hierarchy up to Parent → Child → Grandchild.
+`settings` exposes which settings are currently editable; hidden settings retain
+selected values. `complicationSlotIds` activates linked slots only for selected
+options of active settings. Slots absent from all option lists remain enabled.
+
+```js
+const preview = await renderWatchFace(canvas, {
+  xml,
+  configuration: { layout: "detailed" },
+  complications: {
+    1: { type: "SHORT_TEXT", data: { TEXT: "72%", TITLE: "Battery" } },
+    2: { type: "RANGED_VALUE", data: { RANGED_VALUE_MIN: 0, RANGED_VALUE_MAX: 100, RANGED_VALUE_VALUE: 72 } },
+  },
+});
+console.log(preview.settings.filter(setting => setting.active));
+console.log(preview.activeComplicationSlotIds);
+await preview.update({ configuration: { layout: "minimal" } });
+```
+
+Complication data keys may be bare (`TEXT`) or prefixed (`COMPLICATION.TEXT`).
+They are scoped to one slot and support text, image resources, ranged/goal values,
+and weighted color/weight lists consumed by the XML templates. Supply image bytes
+in `assets`. An omitted slot has no rendered template; injecting `type: "EMPTY"`
+selects its EMPTY template explicitly. Unsupported types are rejected for active slots.
+`update({ complications })` replaces the injected slot map.
+
 ## Coverage and verification
 
-The renderer implements non-complication v4 paths for rich text, shared transforms,
-references, configurations/flavors, drawing/masking, images/playback, interaction and
-localization. **Complications and their descendants are skipped.** Full native parity
-is not established; ICU and native rasterization limits are documented in the
-[element/attribute/version coverage matrix](docs/wff-v4-coverage.md).
+The renderer implements the v4 rendering foundation and the v5 additions: text
+spacing/vertical alignment, circular auto-sizing, Font.minSize, stroke joins,
+Group/ComplicationSlot blending, and hierarchical settings/dynamic slots. Slot
+content is rendered only when a matching type is supplied through `complications`.
+Provider services are external; the browser does not fetch live Wear OS data.
+Full native parity is not established. See the [v4 coverage matrix](docs/wff-v4-coverage.md)
+and [v5 implementation and limits](docs/wff-v5-coverage.md).
 
 ```sh
 pnpm build

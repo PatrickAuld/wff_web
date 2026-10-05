@@ -1,0 +1,9 @@
+{
+  "name": "v5-text-joins",
+  "description": "WFF v5 baseline alignment, line spacing, circular auto-size, font floors, stroke joins and group blending",
+  "wffVersion": 5,
+  "scenarios": [
+    { "name": "interactive", "time": "2024-01-15T10:10:00Z", "timeZone": "UTC", "ambient": false, "maxDiffPixelPercent": 1 },
+    { "name": "ambient", "time": "2024-01-15T10:10:00Z", "timeZone": "UTC", "ambient": true, "maxDiffPixelPercent": 1 }
+  ]
+}
