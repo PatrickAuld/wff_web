@@ -25,7 +25,9 @@
     "examples": "pnpm build && npx serve . -l 3000 --no-clipboard -C",
     "test:visual:export-snapshots": "tsx scripts/update-baselines.ts",
     "test:visual:import-native": "tsx scripts/import-native-reference.ts",
-    "test:unit": "vitest run --config vitest.unit.config.ts"
+    "test:unit": "vitest run --config vitest.unit.config.ts",
+    "perf:native": "python3 scripts/native_performance.py",
+    "test:native": "python3 -m unittest discover -s scripts -p test_native_performance.py"
   },
   "keywords": [
     "wearos",

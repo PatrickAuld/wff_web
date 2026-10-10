@@ -216,6 +216,14 @@ GIF/WebP animation uses the browser ImageDecoder API. Custom fonts use FontFace;
 font-provider downloads require externally supplied assets. CI installs Chromium and
 runs compilation and integration tests. Native comparison remains a separate gate.
 
+## Native watch performance
+
+Use `pnpm perf:native` to inventory WFF costs, discover the Wear OS renderer,
+capture Perfetto traces and compare repeated native runs. Multi-digit rollover
+fixtures run on Wear OS without changing its clock. See
+[native performance measurements](docs/native-performance.md).
+Browser frame times do not measure watch performance or battery use.
+
 ## License
 
 ISC

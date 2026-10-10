@@ -40,7 +40,11 @@ export function prepareScene(scene: Element, base: ExpressionContext, ambient: b
       for (const expression of el.querySelector(":scope > Expressions")?.children ?? []) {
         ctx.sources[expression.getAttribute("name") ?? ""] = evaluateExpression(expression.getAttribute("expression") ?? expression.textContent?.trim() ?? "0", ctx);
       }
-      selected = Array.from(el.children).find(c => c.tagName === "Compare" && Boolean(evaluateExpression(c.getAttribute("expression") ?? "0", ctx))) ?? el.querySelector(":scope > Default");
+      selected = Array.from(el.children).find(c => {
+        if (c.tagName !== "Compare") return false;
+        const expression = c.getAttribute("expression") ?? "0";
+        return Boolean(Object.prototype.hasOwnProperty.call(ctx.sources, expression) ? ctx.sources[expression] : evaluateExpression(expression, ctx));
+      }) ?? el.querySelector(":scope > Default");
     } else {
       const value = ctx.sources[`CONFIGURATION.${el.getAttribute("id")}`];
       const id = el.tagName === "BooleanConfiguration" ? value ? "TRUE" : "FALSE" : String(value);
