@@ -26,7 +26,7 @@ export function applyAttributes(el: Element, ctx: ExpressionContext, ambient: bo
     const target = variant.getAttribute("target");
     if (!target) continue;
     const animation = variant.querySelector(":scope > Animation");
-    const value = ambient ? resolveValue(variant.getAttribute("value") ?? "0", ctx) : resolveValue(el.getAttribute(target) ?? "0", ctx);
+    const value = ambient ? resolveValue(variant.getAttribute("value") ?? "0", ctx) : resolveValue(el.getAttribute(target) ?? (target === "alpha" ? "255" : "0"), ctx);
     const duration = Math.max(0, Math.min(1, number(variant, "duration", 1)));
     let offset = Math.max(0, Math.min(1, number(variant, "startOffset")));
     if (duration + offset > 1) offset = 0;

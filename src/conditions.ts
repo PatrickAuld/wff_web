@@ -60,7 +60,7 @@ export async function renderCondition(
   for (const child of el.children) {
     if (child.tagName === "Compare") {
       const expr = child.getAttribute("expression") ?? "0";
-      const result = evaluateExpression(expr, augCtx);
+      const result = Object.prototype.hasOwnProperty.call(namedResults, expr) ? namedResults[expr] : evaluateExpression(expr, augCtx);
       if (result) {
         for (const grandchild of child.children) {
           await renderChild(ctx, grandchild, augRenderCtx);
